@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# prevent API keys or local secrets from being tracked
+.env.local
+
