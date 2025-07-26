@@ -13,17 +13,19 @@ import Pricacypage from "./pages/privacy";
 export default function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/how" element={<HowPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/nsfw" element={<NsfwPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/terms" element={<TermsPage />} />
-        <Route path="/privacy" element={<Pricacypage />} />
-      </Routes>
+      <div className="min-h-screen bg-gray-100">
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/how" element={<HowPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/nsfw" element={<NsfwPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<Pricacypage />} />
+        </Routes>
+      </div>
     </Router>
   );
 }
