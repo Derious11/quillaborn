@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, FileText, LockKeyhole, ShieldCheck, UserCheck, Receipt, FlaskConical, Ban, SearchCheck, Globe2, Scale, Mail, Zap } from "lucide-react";
+import { FileText, LockKeyhole, ShieldCheck, UserCheck, Receipt, FlaskConical, Ban, SearchCheck, Globe2, Scale, Mail, Zap } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import WaitlistModal from "../components/WaitlistModal";
@@ -35,7 +35,7 @@ export default function TermsOfService() {
           <section className="space-y-8 text-gray-300">
             <div>
               <h2 className="text-2xl font-bold flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-green-400" /> 1. Your Content, Your Rights
+                1. Your Content, Your Rights
               </h2>
               <ul className="list-disc list-inside ml-4 space-y-1">
                 <li>You retain full ownership of all original content you upload to Quillaborn.</li>
