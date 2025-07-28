@@ -34,7 +34,7 @@ export default function LandingPage() {
       if (!res.ok) throw new Error("Failed to submit");
       setSubmitted(true);
       setEmail("");
-    } catch (err) {
+    } catch {
       setError("Something went wrong. Please try again.");
     }
   };
@@ -81,7 +81,7 @@ export default function LandingPage() {
                 <div className="bg-green-500/20 border border-green-500/30 px-8 py-4 rounded-full">
                   <p className="text-green-300 font-bold text-lg flex items-center gap-2">
                     <Sparkles className="w-5 h-5" />
-                    You're in! We'll be in touch soon.
+                    You are in! We will be in touch soon.
                   </p>
                 </div>
               )}
@@ -123,7 +123,7 @@ export default function LandingPage() {
   {
     icon: Palette,
     title: "Build Worlds",
-    desc: "Whether it's a story, artwork, or wild creative project – bring your ideas to life with the right collaborators."
+    desc: "Whether it is a story, artwork, or wild creative project – bring your ideas to life with the right collaborators."
   },
   {
     icon: Zap,

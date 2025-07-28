@@ -1,4 +1,9 @@
-export function Badge({ children, color = 'primary' }) {
+interface BadgeProps {
+  children: React.ReactNode;
+  color?: 'primary' | 'gold' | 'neutral';
+}
+
+export function Badge({ children, color = 'primary' }: BadgeProps) {
   const colorMap = {
     primary: 'bg-primary text-white',
     gold: 'bg-gold text-white',

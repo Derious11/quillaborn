@@ -5,6 +5,7 @@ import { Sparkles, Users, PenTool, Wrench, Sprout } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import WaitlistModal from "../components/WaitlistModal";
+import Image from "next/image";
 
 export default function AboutPage() {
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
@@ -72,7 +73,7 @@ export default function AboutPage() {
                 Because the next legendary universe? It’s probably sitting in someone’s drafts—waiting for a collab.
               </p>
               <p className="mt-2 flex items-center justify-center gap-2">
-                <img src="/Green_Quill_noback.png" alt="Quill Icon" className="w-12 h-12 brightness-125" />
+                <Image src="/Green_Quill_noback.png" alt="Quill Icon" width={48} height={48} className="w-12 h-12 brightness-125" />
                 Be Quillaborn.
               </p>
             </div>

@@ -26,7 +26,7 @@ export default function PricingPage() {
               <Sparkles className="w-6 h-6 text-green-400" /> Pricing
             </h1>
             <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-              Start creating for free. Upgrade when you're ready to scale.<br />
+                              Start creating for free. Upgrade when you&apos;re ready to scale.<br />
               We believe in accessible creativity. That’s why Quillaborn’s core features will always be free for passion projects and early creators.
             </p>
           </div>
@@ -92,7 +92,7 @@ export default function PricingPage() {
               </h2>
               <p>
                 We know not every creator can afford subscriptions. If you’re working on something meaningful and need full access—just tell us.
-                We'll unlock it for free or at a discounted rate. No judgment.
+                We&apos;ll unlock it for free or at a discounted rate. No judgment.
               </p>
             </div>
             <div>

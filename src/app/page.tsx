@@ -1,4 +1,4 @@
-import LandingPage from "@/components/index";
+import LandingPage from "@/components/LandingPage";
 
 export const metadata = {
   title: "Quillaborn – Creative Hub for Artists & Writers",

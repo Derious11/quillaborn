@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  Sparkles,
   ShieldCheck,
   LockKeyhole,
   Eye,
@@ -152,7 +151,7 @@ export default function PrivacyPolicy() {
               <h2 className="text-2xl font-bold flex items-center justify-center gap-2">
                 <Zap className="w-5 h-5 text-green-400" /> TL;DR Summary
               </h2>
-              <p className="mt-2">We collect the minimum data needed to power collaboration.<br />We don't sell it. We protect it. You control it.<br />Your creativity stays yours—and so does your privacy.</p>
+                              <p className="mt-2">We collect the minimum data needed to power collaboration.<br />We don&apos;t sell it. We protect it. You control it.<br />Your creativity stays yours—and so does your privacy.</p>
             </div>
           </section>
         </main>

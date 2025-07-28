@@ -29,7 +29,7 @@ export default function HowItWorksPage() {
           <p className="text-lg text-gray-300">
             Quillaborn helps creators connect, collaborate, and complete amazing stories—together.
             <br /><br />
-            Whether you're an artist, a writer, or both, here’s how the journey unfolds:
+            Whether you are an artist, a writer, or both, here’s how the journey unfolds:
           </p>
 
           <div className="space-y-8 text-gray-300">
@@ -37,7 +37,7 @@ export default function HowItWorksPage() {
               <h2 className="text-2xl font-bold flex items-center gap-2"><User className="w-5 h-5 text-green-400" /> 1. Create Your Profile</h2>
               <p>
                 Choose your path. Are you a writer, an artist, or a hybrid dream-weaver? Select your creative role,
-                set your genres, mark your NSFW preferences, and share what you're excited to build.
+                set your genres, mark your NSFW preferences, and share what you&apos;re excited to build.
                 <br />→ Don’t worry—this can evolve as you do.
               </p>
             </div>
@@ -53,7 +53,7 @@ export default function HowItWorksPage() {
               <h2 className="text-2xl font-bold flex items-center gap-2"><Brain className="w-5 h-5 text-green-400" /> 3. Start a New Project</h2>
               <p>
                 Got a concept? Post it. Upload your idea—whether it’s a one-line prompt, a fanfic AU, or an illustrated universe.
-                Set roles you're looking to fill, attach inspiration, and choose your privacy level.
+                Set roles you&apos;re looking to fill, attach inspiration, and choose your privacy level.
                 <br />→ Open to the world or invite-only—it’s up to you.
               </p>
             </div>
@@ -71,7 +71,7 @@ export default function HowItWorksPage() {
             <div>
               <h2 className="text-2xl font-bold flex items-center gap-2"><Star className="w-5 h-5 text-green-400" /> 5. Publish or Showcase</h2>
               <p>
-                Finish something together. Show it off. When you're ready, you can publish a collaborative showcase page
+                Finish something together. Show it off. When you are ready, you can publish a collaborative showcase page
                 with full creator credits, download links, and shareable previews.
                 <br />→ Tag it as complete, archived, or open to more.
               </p>
@@ -89,7 +89,7 @@ export default function HowItWorksPage() {
             <div>
               <h2 className="text-2xl font-bold flex items-center gap-2"><Sparkles className="w-5 h-5 text-green-400" /> Still Curious?</h2>
               <p>
-                Join the community, test ideas, or lurk until you’re ready to jump in.
+                Join the community, test ideas, or lurk until you are ready to jump in.
                 Quillaborn is built to support you wherever you are on your creative path.
               </p>
             </div>

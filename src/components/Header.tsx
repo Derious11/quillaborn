@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
+import Image from "next/image";
 
 const navLinks = [
   { label: "About", href: "/about" },
@@ -28,7 +29,7 @@ export default function Header({ onJoinWaitlist }: HeaderProps) {
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
-          <img src="/Green_Quill_noback.png" alt="Quillaborn Logo" className="w-12 h-12 brightness-125" />
+          <Image src="/Green_Quill_noback.png" alt="Quillaborn Logo" width={48} height={48} className="w-12 h-12 brightness-125" />
           <span className="text-xl font-bold text-white">Quillaborn</span>
         </Link>
 

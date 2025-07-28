@@ -151,7 +151,7 @@ export default function TermsOfService() {
               <h2 className="text-2xl font-bold flex items-center justify-center gap-2">
                 <Zap className="w-5 h-5 text-green-400" /> Summary (Not Legally Binding)
               </h2>
-              <p className="mt-2">You own your stuff. Be kind and respectful. Don't be gross. We're here to help you create amazing things with others.</p>
+                              <p className="mt-2">You own your stuff. Be kind and respectful. Don&apos;t be gross. We&apos;re here to help you create amazing things with others.</p>
             </div>
           </section>
         </main>
