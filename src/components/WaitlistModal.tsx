@@ -8,6 +8,11 @@ interface WaitlistModalProps {
   onClose: () => void;
 }
 
+// Email validation utility (outside component for reuse/performance)
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -17,17 +22,21 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
     e.preventDefault();
     setError(null);
 
+    // Email validation
+    if (!email || !isValidEmail(email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
     try {
-      const res = await fetch(`https://api.airtable.com/v0/${process.env.NEXT_PUBLIC_AIRTABLE_BASE_ID}/Waitlist`, {
+      const res = await fetch('/api/airtable', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_AIRTABLE_API_KEY}`,
         },
         body: JSON.stringify({
-          fields: {
-            Email: email,
-          },
+          type: "waitlist",
+          Email: email,
         }),
       });
 
@@ -47,6 +56,7 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-white"
+          aria-label="Close waitlist modal"
         >
           <XCircle className="w-6 h-6" />
         </button>
@@ -65,6 +75,7 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="px-4 py-3 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+              autoComplete="email"
             />
             <button
               type="submit"

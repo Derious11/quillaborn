@@ -1,11 +1,21 @@
 import type { Config } from 'tailwindcss';
 
-const config: Config = {
+export default {
   content: [
-    "./src/**/*.{js,ts,jsx,tsx,mdx}"
+    "./src/app/**/*.{js,ts,jsx,tsx}",
+    "./src/components/**/*.{js,ts,jsx,tsx}",
+    "./src/app/globals.css"
   ],
   theme: {
     extend: {
+      colors: {
+        green: {
+          300: '#86efac',
+          400: '#4ade80',
+          500: '#22c55e',
+          600: '#16a34a',
+        },
+      },
       animation: {
         'fadeIn': 'fadeIn 0.3s ease-in-out',
         'fadeInUp': 'fadeInUp 0.3s ease-in-out',
@@ -30,4 +40,3 @@ const config: Config = {
   plugins: [],
 };
 
-export default config;

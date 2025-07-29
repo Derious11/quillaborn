@@ -1,25 +1,23 @@
 "use client";
 
 import {
-  Wrench,
-  Mail,
-  Lightbulb,
-  Users,
-  HeartHandshake,
-  MessageSquare,
-  Bug,
-  HelpCircle,
-  ArrowRight,
+  Wrench, Mail, Lightbulb, Users, HeartHandshake, MessageSquare, Bug, HelpCircle, ArrowRight,
 } from "lucide-react";
 import { useState } from "react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import WaitlistModal from "../components/WaitlistModal";
 
+// Email validation helper
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export default function ContactSupportPage() {
   const [showBugForm, setShowBugForm] = useState(false);
   const [showFeatureForm, setShowFeatureForm] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", message: "" });
+  const [formError, setFormError] = useState<string | null>(null);
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -28,35 +26,49 @@ export default function ContactSupportPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Single handler for both bug and feature, now with validation!
   const handleSubmit = async (type: "bug" | "feature") => {
-    const table = type === "bug" ? "Bugs" : "Features";
+    setFormError(null);
 
-    await fetch(`https://api.airtable.com/v0/${process.env.NEXT_PUBLIC_AIRTABLE_BASE_ID}/${table}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_AIRTABLE_API_KEY}`,
-      },
-      body: JSON.stringify({
-        fields: {
+    // Validate inputs
+    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+      setFormError("Please fill in all fields.");
+      return;
+    }
+    if (!isValidEmail(formData.email)) {
+      setFormError("Please enter a valid email address.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/airtable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type, // "bug" or "feature"
           Name: formData.name,
           Email: formData.email,
           Message: formData.message,
-          Type: type,
-        },
-      }),
-    });
+        }),
+      });
 
-    setFormData({ name: "", email: "", message: "" });
-    setShowBugForm(false);
-    setShowFeatureForm(false);
-    setSuccessMessage(type === "bug" ? "Bug reported successfully!" : "Feature submitted successfully!");
-    setShowSuccess(true);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to submit.");
+      }
 
-    setTimeout(() => {
-      setShowSuccess(false);
-      setSuccessMessage("");
-    }, 4000);
+      setFormData({ name: "", email: "", message: "" });
+      setShowBugForm(false);
+      setShowFeatureForm(false);
+      setSuccessMessage(type === "bug" ? "Bug reported successfully!" : "Feature submitted successfully!");
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        setSuccessMessage("");
+      }, 4000);
+    } catch (error: any) {
+      setFormError(error?.message || "Something went wrong. Please try again.");
+    }
   };
 
   return (
@@ -125,6 +137,7 @@ export default function ContactSupportPage() {
                     onClick={() => {
                       setShowBugForm(false);
                       setShowFeatureForm(false);
+                      setFormError(null);
                     }}
                     className="absolute top-4 right-4 text-gray-400 hover:text-white"
                   >
@@ -143,15 +156,64 @@ export default function ContactSupportPage() {
                       </>
                     )}
                   </h3>
-                  <div className="space-y-3">
-                    <input type="text" name="name" placeholder="Your name" onChange={handleChange} value={formData.name} className="w-full p-3 rounded bg-gray-800 border border-gray-700" />
-                    <input type="email" name="email" placeholder="Your email" onChange={handleChange} value={formData.email} className="w-full p-3 rounded bg-gray-800 border border-gray-700" />
-                    <textarea name="message" placeholder="Describe the issue or feature..." onChange={handleChange} value={formData.message} rows={4} className="w-full p-3 rounded bg-gray-800 border border-gray-700"></textarea>
+                  <form
+                    className="space-y-3"
+                    onSubmit={e => {
+                      e.preventDefault();
+                      handleSubmit(showBugForm ? "bug" : "feature");
+                    }}
+                  >
+                    <input
+                      type="text"
+                      name="name"
+                      placeholder="Your name"
+                      onChange={handleChange}
+                      value={formData.name}
+                      className="w-full p-3 rounded bg-gray-800 border border-gray-700"
+                      autoComplete="name"
+                    />
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="Your email"
+                      onChange={handleChange}
+                      value={formData.email}
+                      className="w-full p-3 rounded bg-gray-800 border border-gray-700"
+                      autoComplete="email"
+                    />
+                    <textarea
+                      name="message"
+                      placeholder="Describe the issue or feature..."
+                      onChange={handleChange}
+                      value={formData.message}
+                      rows={4}
+                      className="w-full p-3 rounded bg-gray-800 border border-gray-700"
+                    ></textarea>
+                    {formError && (
+                      <div className="text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg text-sm">
+                        {formError}
+                      </div>
+                    )}
                     <div className="flex justify-end gap-3 pt-2">
-                      <button onClick={() => { setShowBugForm(false); setShowFeatureForm(false); }} className="px-4 py-2 rounded bg-gray-600 hover:bg-gray-500 text-white">Cancel</button>
-                      <button onClick={() => handleSubmit(showBugForm ? "bug" : "feature")} className="px-4 py-2 rounded bg-green-500 hover:bg-green-600 text-black font-semibold">Submit</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowBugForm(false);
+                          setShowFeatureForm(false);
+                          setFormError(null);
+                        }}
+                        className="px-4 py-2 rounded bg-gray-600 hover:bg-gray-500 text-white"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 rounded bg-green-500 hover:bg-green-600 text-black font-semibold"
+                      >
+                        Submit
+                      </button>
                     </div>
-                  </div>
+                  </form>
                 </div>
               </div>
             )}
