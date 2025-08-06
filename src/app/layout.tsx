@@ -1,7 +1,11 @@
+// src/app/layout.tsx
+
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/next";
+import SupabaseProvider from "@/components/providers/SupabaseProvider";
+import AuthListener from "@/components/features/auth/AuthListener";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -17,6 +21,9 @@ export const metadata: Metadata = {
   title: "Quillaborn – Creative Hub for Artists & Writers",
   description: "Quillaborn helps creators collaborate on original and fan projects. Join a vibrant community today.",
   metadataBase: new URL("https://quillaborn.com"),
+  icons: {
+    icon: '/favicon.ico',
+  },
   openGraph: {
     title: "Quillaborn",
     description: "Collaborate. Create. Connect.",
@@ -41,7 +48,13 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
       >
-        {children}
+        <SupabaseProvider>
+          <AuthListener />
+          {children}
+        </SupabaseProvider>
+        
+        {/* This will only render the Analytics component in production */}
+        {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   );

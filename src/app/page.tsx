@@ -1,4 +1,4 @@
-import LandingPage from "../components/LandingPage";
+import LandingPage from "@/components/features/public/LandingPage";
 
 export const metadata = {
   title: "Home – Quillaborn",
