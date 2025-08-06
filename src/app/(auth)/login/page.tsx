@@ -72,7 +72,7 @@ export default function LoginPage() {
   async function handleGoogleLogin() {
     setLoading(true);
     const redirectTo = typeof window !== "undefined"
-      ? `${window.location.origin}/auth/callback`
+      ? `${window.location.origin}/auth/callback/`
       : "/auth/callback";
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
