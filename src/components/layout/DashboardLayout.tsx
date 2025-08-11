@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Menu } from "lucide-react";
 import Sidebar from "./Sidebar";
-import SignOutButton from "@/components/ui/SignOutButton";
+import SignOutButton from "@/components/ui/signoutbutton";
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '@/lib/types';
 

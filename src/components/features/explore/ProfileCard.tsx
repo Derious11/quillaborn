@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Avatar as QBAvatar } from '@/components/ui/Avatar';
+import { Avatar as QBAvatar } from '@/components/ui/avatar';
 
 type PublicProfile = {
   id: string;

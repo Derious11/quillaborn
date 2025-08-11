@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Avatar as QBAvatar } from '@/components/ui/Avatar';
+import { Avatar as QBAvatar } from '@/components/ui/avatar';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '@/lib/types';
 import { User as UserIcon, Hash, User as UserNameIcon, FileText, Users, Briefcase, Heart, Edit2 } from 'lucide-react';
-import { Modal } from '@/components/ui/Modal';
+import { Modal } from '@/components/ui/modal';
 import { useSupabase } from '@/components/providers/SupabaseProvider';
 
 interface ProfilePageProps {
