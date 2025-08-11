@@ -11,7 +11,8 @@ import {
   MessageCircle, 
   FolderOpen,
   Menu,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '@/lib/types';
@@ -127,7 +128,16 @@ export default function Sidebar({ user, profile, activeTab, sidebarOpen: externa
                 <p className="text-sm font-medium text-white truncate">
                   {profile.display_name || profile.username}
                 </p>
-                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                <button
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    router.push('/dashboard/settings');
+                  }}
+                  className="flex items-center gap-2 text-xs text-gray-400 hover:text-green-400 transition-colors mt-1"
+                >
+                  <Settings size={12} />
+                  Settings
+                </button>
               </div>
             </div>
           </div>

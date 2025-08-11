@@ -6,6 +6,8 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import SupabaseProvider from "@/components/providers/SupabaseProvider";
 import AuthListener from "@/components/features/auth/AuthListener";
+import { Toaster } from "@/components/ui/toaster";
+
 
 const inter = Inter({
   subsets: ["latin"],
@@ -52,6 +54,7 @@ export default function RootLayout({
           <AuthListener />
           {children}
         </SupabaseProvider>
+        <Toaster />
         
         {/* This will only render the Analytics component in production */}
         {process.env.NODE_ENV === 'production' && <Analytics />}

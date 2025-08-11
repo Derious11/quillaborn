@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { Avatar as QBAvatar } from '@/components/ui/Avatar';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '@/lib/types';
-import { User as UserIcon, Mail, Hash, User as UserNameIcon, FileText, Users, Briefcase, Heart, Edit2 } from 'lucide-react';
+import { User as UserIcon, Hash, User as UserNameIcon, FileText, Users, Briefcase, Heart, Edit2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useSupabase } from '@/components/providers/SupabaseProvider';
 
@@ -182,15 +184,21 @@ export default function ProfilePage({ user, profile, userInterests, userRole, pr
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Email Card */}
-        <div className="bg-gray-800 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Mail className="w-5 h-5 text-green-400" />
-              <h3 className="text-lg font-semibold">Email</h3>
+        {/* Avatar Card */}
+        <div className="bg-gray-800 rounded-lg p-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <QBAvatar profile={profile} size={16} alt="Profile avatar" />
+            <div>
+              <h3 className="text-lg font-semibold">Avatar</h3>
+              <p className="text-gray-300 text-sm">Shown on your public profile</p>
             </div>
           </div>
-          <p className="text-gray-300">{user.email || 'No email provided'}</p>
+          <Link
+            href="/profile/avatar"
+            className="text-gray-400 hover:text-green-400 transition-colors text-sm underline"
+          >
+            Change
+          </Link>
         </div>
 
         {/* Username Card */}

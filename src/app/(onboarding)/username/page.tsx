@@ -1,3 +1,7 @@
+export const dynamic = 'force-dynamic'; // don’t try to prerender
+export const revalidate = 0;            // no caching
+export const runtime = 'nodejs';        // avoid Edge + supabase-js warnings
+// (optional) export const fetchCache = 'force-no-store';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabaseServer';
 import UsernamePage from '@/components/features/onboarding/UsernamePage';

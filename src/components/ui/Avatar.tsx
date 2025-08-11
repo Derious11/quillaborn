@@ -1,16 +1,23 @@
 import Image from "next/image";
+import type { Profile } from "@/lib/types";
+import { getAvatarUrl } from "@/lib/avatar-utils";
 
 interface AvatarProps {
-  src: string;
+  src?: string;
+  profile?: Profile;
   alt?: string;
   size?: number;
 }
 
-export function Avatar({ src, alt = "", size = 12 }: AvatarProps) {
+export function Avatar({ src, profile, alt = "", size = 12 }: AvatarProps) {
   const px = size * 4;
+  
+  // Determine the avatar source
+  const avatarSrc = src || (profile ? getAvatarUrl(profile) : '/avatar-fallback.png');
+  
   return (
     <Image
-      src={src}
+      src={avatarSrc}
       alt={alt}
       width={px}
       height={px}

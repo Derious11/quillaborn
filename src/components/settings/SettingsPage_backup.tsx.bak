@@ -1,0 +1,815 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils";
+import {
+  Card, CardHeader, CardTitle, CardDescription, CardContent,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  UserRound, ShieldCheck, Bell, SlidersHorizontal, CreditCard, ArrowLeft, Edit2, Heart, Briefcase,
+} from "lucide-react";
+
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import type { User } from "@supabase/supabase-js";
+import type { Profile } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast"; // shadcn toast
+
+type SectionKey = "profile" | "privacy" | "notifications" | "preferences" | "billing";
+
+const sections: Array<{
+  key: SectionKey;
+  label: string;
+  icon: React.ElementType;
+  description: string;
+}> = [
+  { key: "profile", label: "Profile", icon: UserRound, description: "Update your public profile and basic info." },
+  { key: "privacy", label: "Privacy & Security", icon: ShieldCheck, description: "Control visibility, sessions, and security." },
+  { key: "notifications", label: "Notifications", icon: Bell, description: "Choose what you get notified about and how." },
+  { key: "preferences", label: "Preferences", icon: SlidersHorizontal, description: "Theme, language, and content settings." },
+  { key: "billing", label: "Billing", icon: CreditCard, description: "Manage plan, payment methods, and invoices." },
+];
+
+interface SettingsPageProps {
+  user?: User;
+  profile?: Profile;
+  userInterests?: any[];
+  userRole?: any;
+  allRoles?: any[];
+  allInterests?: any[];
+}
+
+export default function SettingsPage({ 
+  user: propUser, 
+  profile: propProfile, 
+  userInterests, 
+  userRole, 
+  allRoles, 
+  allInterests 
+}: SettingsPageProps) {
+  const router = useRouter();
+  const search = useSearchParams();
+  const initial = (search.get("section") as SectionKey) || "profile";
+  const [active, setActive] = useState<SectionKey>(initial);
+
+  const setSection = useCallback(
+    (next: SectionKey) => {
+      setActive(next);
+      const url = new URL(window.location.href);
+      url.searchParams.set("section", next);
+      router.replace(url.toString());
+    },
+    [router]
+  );
+
+  useEffect(() => {
+    if (!sections.find((s) => s.key === initial)) setActive("profile");
+  }, [initial]);
+
+  const ActiveContent = useMemo(() => {
+    switch (active) {
+      case "profile":
+        return <ProfileSection 
+          user={propUser} 
+          profile={propProfile} 
+          userInterests={userInterests}
+          userRole={userRole}
+          allRoles={allRoles}
+          allInterests={allInterests}
+        />;
+      case "privacy":
+        return <PrivacySection />;
+      case "notifications":
+        return <NotificationsSection />;
+      case "preferences":
+        return <PreferencesSection />;
+      case "billing":
+        return <BillingSection />;
+      default:
+        return null;
+    }
+  }, [active, propUser, propProfile, userInterests, userRole, allRoles, allInterests]);
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white">
+      <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 via-gray-900 to-gray-900"></div>
+      <div className="absolute inset-0 opacity-50 bg-gray-900"></div>
+      <div className="relative mx-auto w-full max-w-6xl px-4 py-8 md:py-10">
+        <div className="mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="flex items-center gap-2 text-gray-300 hover:text-green-400 transition-colors"
+            >
+              <ArrowLeft size={20} />
+              <span className="text-sm">Back to Dashboard</span>
+            </button>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl text-white">Settings</h1>
+          <p className="text-sm text-gray-300">Manage your account and app preferences.</p>
+        </div>
+
+      <div className="grid gap-6 md:grid-cols-[260px_1fr]">
+        <aside className="rounded-2xl border bg-card/50 p-2">
+          <nav className="flex flex-col gap-1">
+            {sections.map(({ key, label, icon: Icon, description }) => (
+              <button
+                key={key}
+                onClick={() => setSection(key)}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition",
+                  active === key ? "bg-accent text-accent-foreground" : "hover:bg-accent/70"
+                )}
+                aria-current={active === key ? "page" : undefined}
+                title={description}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="text-sm font-medium">{label}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <main className="space-y-8">{ActiveContent}</main>
+      </div>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------------------
+ * PROFILE — wired to Supabase (auth + profiles)
+ * --------------------------------------------------------------------------*/
+
+function ProfileSection({ 
+  user: propUser, 
+  profile: propProfile, 
+  userInterests, 
+  userRole, 
+  allRoles, 
+  allInterests 
+}: { 
+  user?: User; 
+  profile?: Profile; 
+  userInterests?: any[]; 
+  userRole?: any; 
+  allRoles?: any[]; 
+  allInterests?: any[]; 
+}) {
+  const supabase = createClientComponentClient();
+  const { toast } = useToast();
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editingField, setEditingField] = useState<'role' | 'interests' | ''>('');
+  const [selectedRole, setSelectedRole] = useState<number | null>(null);
+  const [selectedInterests, setSelectedInterests] = useState<number[]>([]);
+
+  const [form, setForm] = useState<Pick<Profile, "display_name" | "username" | "bio">>({
+    display_name: propProfile?.display_name ?? "",
+    username: propProfile?.username ?? "",
+    bio: propProfile?.bio ?? "",
+  });
+
+  // Update form when props change
+  useEffect(() => {
+    if (propProfile) {
+      setForm({
+        display_name: propProfile.display_name ?? "",
+        username: propProfile.username ?? "",
+        bio: propProfile.bio ?? "",
+      });
+    }
+    // Initialize role and interests from props
+    if (userRole) {
+      setSelectedRole(userRole.role_id);
+    }
+    if (userInterests) {
+      setSelectedInterests(userInterests.map((item: any) => item.interest_id));
+    }
+  }, [propProfile, userRole, userInterests]);
+
+  const handleChange =
+    (key: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const onSave = async () => {
+    if (!propUser) return;
+
+    // very light client validation
+    const username = (form.username || "").trim();
+    if (username && !/^[a-z0-9_]+$/i.test(username)) {
+      toast({
+        title: "Invalid username",
+        description: "Use letters, numbers, or underscores only.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+
+    // optimistic UI: keep values, attempt update
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        display_name: form.display_name?.trim() || null,
+        username: username || null,
+        bio: form.bio?.trim() || null,
+      })
+      .eq("id", propUser.id);
+
+    setSaving(false);
+
+    if (error) {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({ title: "Profile saved", description: "Your changes are live." });
+  };
+
+  const saveRole = async () => {
+    if (!propUser || selectedRole === null) return;
+
+    setSaving(true);
+
+    try {
+      // Delete existing role
+      await supabase
+        .from('profile_roles')
+        .delete()
+        .eq('profile_id', propUser.id);
+
+      // Insert new role
+      const { error } = await supabase
+        .from('profile_roles')
+        .insert({
+          profile_id: propUser.id,
+          role_id: selectedRole
+        });
+
+      if (error) {
+        toast({
+          title: "Update failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
+
+      toast({ title: "Role updated", description: "Your role has been saved." });
+      setEditingField('');
+    } catch (error) {
+      toast({
+        title: "Update failed",
+        description: "Failed to update role",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveInterests = async () => {
+    if (!propUser) return;
+
+    setSaving(true);
+
+    try {
+      // Delete existing interests
+      await supabase
+        .from('profile_interests')
+        .delete()
+        .eq('profile_id', propUser.id);
+
+      // Insert new interests
+      if (selectedInterests.length > 0) {
+        const { error } = await supabase
+          .from('profile_interests')
+          .insert(
+            selectedInterests.map(interestId => ({
+              profile_id: propUser.id,
+              interest_id: interestId
+            }))
+          );
+
+        if (error) {
+          toast({
+            title: "Update failed",
+            description: error.message,
+            variant: "destructive",
+          });
+          setSaving(false);
+          return;
+        }
+      }
+
+      toast({ title: "Interests updated", description: "Your interests have been saved." });
+      setEditingField('');
+    } catch (error) {
+      toast({
+        title: "Update failed",
+        description: "Failed to update interests",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Profile</CardTitle>
+          <CardDescription>These details appear on your public profile.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-6 w-40 animate-pulse rounded bg-muted" />
+          <div className="mt-4 h-10 w-full animate-pulse rounded bg-muted" />
+          <div className="mt-3 h-10 w-full animate-pulse rounded bg-muted" />
+          <div className="mt-3 h-24 w-full animate-pulse rounded bg-muted" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Profile</CardTitle>
+          <CardDescription>These details appear on your public profile.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-6 w-40 animate-pulse rounded bg-muted" />
+          <div className="mt-4 h-10 w-full animate-pulse rounded bg-muted" />
+          <div className="mt-3 h-10 w-full animate-pulse rounded bg-muted" />
+          <div className="mt-3 h-24 w-full animate-pulse rounded bg-muted" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!propUser) {
+    return (
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Profile</CardTitle>
+          <CardDescription>Sign in to manage your profile.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No user session found.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Profile</CardTitle>
+          <CardDescription>These details appear on your public profile.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="displayName">Display name</Label>
+            <Input
+              id="displayName"
+              placeholder="Your display name"
+              value={form.display_name ?? ""}
+              onChange={handleChange("display_name")}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="username">Username</Label>
+            <Input
+              id="username"
+              placeholder="username"
+              value={form.username ?? ""}
+              onChange={handleChange("username")}
+            />
+            <p className="text-xs text-muted-foreground">
+              Only letters, numbers, and underscores.
+            </p>
+          </div>
+          <div className="md:col-span-2 space-y-2">
+            <Label htmlFor="bio">Bio</Label>
+            <Textarea
+              id="bio"
+              placeholder="A short description about you..."
+              value={form.bio ?? ""}
+              onChange={handleChange("bio")}
+              rows={4}
+            />
+          </div>
+
+          {/* Role Section */}
+          <div className="space-y-2">
+            <Label>Role</Label>
+            <div className="flex items-center justify-between p-3 border border-border/50 rounded-lg bg-card/50 hover-lift">
+              <span className="text-sm text-card-foreground">
+                {userRole?.roles?.name || 'Not selected'}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditingField('role')}
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Edit2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Interests Section */}
+          <div className="md:col-span-2 space-y-2">
+            <Label>Interests</Label>
+            <div className="p-3 border border-border/50 rounded-lg bg-card/50 hover-lift">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-card-foreground">
+                  {userInterests && userInterests.length > 0 
+                    ? `${userInterests.length} interest${userInterests.length !== 1 ? 's' : ''} selected`
+                    : 'No interests selected'
+                  }
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditingField('interests')}
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {userInterests && userInterests.length > 0 ? (
+                  userInterests.map((item: any) => (
+                    <span 
+                      key={item.interest_id} 
+                      className="bg-accent-green text-accent-green px-2 py-1 rounded-full text-xs border border-accent-green"
+                    >
+                      {item.interests.name}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-muted-foreground text-sm">Click edit to add interests</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+          <Separator />
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-muted-foreground">
+              Your profile is linked to your account (private ID in Supabase).
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" type="button" onClick={() => window.location.reload()}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={onSave} disabled={saving}>
+                {saving ? "Saving..." : "Save changes"}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Role Editing Modal */}
+      {editingField === 'role' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="dialog-content rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-popover-foreground mb-4">Edit Role</h3>
+            <div className="space-y-3 mb-6">
+              <p className="text-muted-foreground text-sm">Select your role:</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                {allRoles?.map((role) => (
+                  <button
+                    key={role.id}
+                    onClick={() => setSelectedRole(role.id)}
+                    className={`selection-button ${
+                      selectedRole === role.id
+                        ? 'selection-button-selected'
+                        : 'selection-button-unselected'
+                    }`}
+                  >
+                    <h4 className="font-semibold text-sm">{role.name}</h4>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setEditingField('')}>
+                Cancel
+              </Button>
+              <Button onClick={saveRole} disabled={saving} className="btn-primary">
+                {saving ? "Saving..." : "Save Role"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    {/* Interests Editing Modal */}
+    {editingField === 'interests' && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="dialog-content rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+          <h3 className="text-lg font-bold text-popover-foreground mb-4">Edit Interests</h3>
+          <div className="space-y-3 mb-6">
+            <p className="text-muted-foreground text-sm">Select your interests (multiple allowed):</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+              {allInterests?.map((interest) => (
+                <button
+                  key={interest.id}
+                  onClick={() => {
+                    setSelectedInterests(prev => 
+                      prev.includes(interest.id)
+                        ? prev.filter(id => id !== interest.id)
+                        : [...prev, interest.id]
+                    );
+                  }}
+                  className={`selection-button ${
+                    selectedInterests.includes(interest.id)
+                      ? 'selection-button-selected'
+                      : 'selection-button-unselected'
+                  }`}
+                >
+                  <h4 className="font-semibold text-sm">{interest.name}</h4>
+                  </button>
+                ))}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Selected: {selectedInterests.length} interest{selectedInterests.length !== 1 ? 's' : ''}
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setEditingField('')}>
+              Cancel
+            </Button>
+            <Button onClick={saveInterests} disabled={saving} className="btn-primary">
+              {saving ? "Saving..." : "Save Interests"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Interests Editing Modal */}
+    {editingField === 'interests' && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="dialog-content rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+          <h3 className="text-lg font-bold text-popover-foreground mb-4">Edit Interests</h3>
+          <div className="space-y-3 mb-6">
+            <p className="text-muted-foreground text-sm">Select your interests (multiple allowed):</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+              {allInterests?.map((interest) => (
+                <button
+                  key={interest.id}
+                  onClick={() => {
+                    setSelectedInterests(prev => 
+                      prev.includes(interest.id)
+                        ? prev.filter(id => id !== interest.id)
+                        : [...prev, interest.id]
+                    );
+                  }}
+                  className={`selection-button ${
+                    selectedInterests.includes(interest.id)
+                      ? 'selection-button-selected'
+                      : 'selection-button-unselected'
+                  }`}
+                >
+                  <h4 className="font-semibold text-sm">{interest.name}</h4>
+                </button>
+              ))}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Selected: {selectedInterests.length} interest{selectedInterests.length !== 1 ? 's' : ''}
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setEditingField('')}>
+              Cancel
+            </Button>
+            <Button onClick={saveInterests} disabled={saving} className="btn-primary">
+              {saving ? "Saving..." : "Save Interests"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
+  );
+}
+
+/* ---------- Other sections (unchanged placeholders) ---------- */
+
+function PrivacySection() {
+  return (
+    <div className="space-y-6">
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Privacy & Security</CardTitle>
+          <CardDescription>Control your visibility and secure your account.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="font-medium">Public profile</Label>
+              <p className="text-sm text-muted-foreground">Show your profile to non-followers.</p>
+            </div>
+            <Switch id="publicProfile" />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="font-medium">Two-factor authentication</Label>
+              <p className="text-sm text-muted-foreground">Add an extra layer of security at login.</p>
+            </div>
+            <Button variant="secondary" type="button">Set up 2FA</Button>
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="font-medium">Download your data</Label>
+              <p className="text-sm text-muted-foreground">Receive a copy of your account data via email.</p>
+            </div>
+            <Button variant="outline" type="button">Request export</Button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="font-medium text-red-600">Delete account</Label>
+              <p className="text-sm text-muted-foreground">Permanently remove your account and content.</p>
+            </div>
+            <Button variant="destructive" type="button">Delete</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function NotificationsSection() {
+  return (
+    <Card className="rounded-2xl">
+      <CardHeader>
+        <CardTitle>Notifications</CardTitle>
+        <CardDescription>Choose what you get notified about and how.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="font-medium">Email notifications</Label>
+            <p className="text-sm text-muted-foreground">Announcements, collaboration invites, tips.</p>
+          </div>
+          <Switch id="emailNotifs" defaultChecked />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="font-medium">In-app notifications</Label>
+            <p className="text-sm text-muted-foreground">Mentions, comments, project updates.</p>
+          </div>
+          <Switch id="inappNotifs" defaultChecked />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="font-medium">Quiet hours</Label>
+            <p className="text-sm text-muted-foreground">Mute notifications overnight.</p>
+          </div>
+          <Button variant="outline" type="button">Set schedule</Button>
+        </div>
+
+        <Separator />
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="notifEmail">Notification email</Label>
+            <Input id="notifEmail" type="email" placeholder="you@domain.com" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="summaryFreq">Digest frequency</Label>
+            <select id="summaryFreq" className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+              <option value="daily">Daily</option>
+              <option value="weekly" defaultValue={"weekly"}>
+                Weekly
+              </option>
+              <option value="off">Off</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" type="button">Cancel</Button>
+          <Button type="button">Save changes</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PreferencesSection() {
+  return (
+    <Card className="rounded-2xl">
+      <CardHeader>
+        <CardTitle>Preferences</CardTitle>
+        <CardDescription>Theme, language, and content filters.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="theme">Theme</Label>
+            <select id="theme" className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="language">Language</Label>
+            <select id="language" className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+              <option value="en">English</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <Label className="font-medium">Show mature content</Label>
+            <p className="text-sm text-muted-foreground">Enable NSFW areas (age-gated).</p>
+          </div>
+          <Switch id="nsfw" />
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" type="button">Cancel</Button>
+          <Button type="button">Save changes</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BillingSection() {
+  return (
+    <div className="space-y-6">
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Plan & Billing</CardTitle>
+          <CardDescription>Manage your subscription and payment methods.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground">Current plan</div>
+              <div className="text-lg font-semibold">Free</div>
+            </div>
+            <div className="flex items-end justify-end">
+              <Button type="button">Upgrade plan</Button>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="font-medium">Payment methods</Label>
+              <p className="text-sm text-muted-foreground">Add or remove a card.</p>
+            </div>
+            <Button variant="outline" type="button">Manage</Button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="font-medium">Invoices</Label>
+              <p className="text-sm text-muted-foreground">Download past invoices.</p>
+            </div>
+            <Button variant="outline" type="button">View invoices</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

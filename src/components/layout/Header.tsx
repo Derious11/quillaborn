@@ -8,6 +8,7 @@ import Image from "next/image";
 
 const navLinks = [
   { label: "About", href: "/about" },
+  { label: "Blog", href: "/blog" },
   { label: "How It Works", href: "/how-it-works" },
   { label: "Pricing", href: "/pricing" },
 
@@ -17,12 +18,13 @@ const navLinks = [
 ];
 
 interface HeaderProps {
-  onJoinWaitlist: () => void;
+  onJoinWaitlist?: () => void;
 }
 
 export default function Header({ onJoinWaitlist }: HeaderProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const handleJoin = onJoinWaitlist ?? (() => {});
 
   return (
     <header className="relative z-50 px-6 py-4 border-b border-gray-800 bg-gray-950/90 backdrop-blur-sm">
@@ -60,7 +62,7 @@ export default function Header({ onJoinWaitlist }: HeaderProps) {
 
         {/* CTA Button */}
         <button
-          onClick={onJoinWaitlist}
+          onClick={handleJoin}
           className="ml-4 px-4 py-2 text-sm font-semibold rounded bg-green-500 hover:bg-green-400 text-gray-900 shadow hidden md:block"
         >
           Join Waitlist
@@ -84,7 +86,7 @@ export default function Header({ onJoinWaitlist }: HeaderProps) {
           ))}
 
           <button
-            onClick={onJoinWaitlist}
+            onClick={handleJoin}
             className="w-full text-left mt-2 px-4 py-2 text-sm font-semibold rounded bg-green-500 hover:bg-green-400 text-gray-900 shadow"
           >
             Join Waitlist

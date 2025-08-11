@@ -2,14 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
 }
 
@@ -98,4 +91,148 @@ body {
 
 .to-green-600 {
   --tw-gradient-to: #16a34a !important;
+}
+
+
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 20 14.3% 4.1%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14.3% 4.1%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14.3% 4.1%;
+    --primary: 24 9.8% 10%;
+    --primary-foreground: 60 9.1% 97.8%;
+    --secondary: 60 4.8% 95.9%;
+    --secondary-foreground: 24 9.8% 10%;
+    --muted: 60 4.8% 95.9%;
+    --muted-foreground: 25 5.3% 44.7%;
+    --accent: 60 4.8% 95.9%;
+    --accent-foreground: 24 9.8% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 20 5.9% 90%;
+    --input: 20 5.9% 90%;
+    --ring: 20 14.3% 4.1%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    /* Dark backgrounds matching your site */
+    --background: 222 84% 5%; /* Very dark gray/black */
+    --foreground: 210 40% 98%; /* Near white */
+    --card: 222 84% 5%; /* Same as background for seamless look */
+    --card-foreground: 210 40% 98%;
+    --popover: 220 13% 18%; /* Slightly lighter for modals */
+    --popover-foreground: 210 40% 98%;
+    
+    /* Green primary to match your accent color */
+    --primary: 142 76% 36%; /* Green-500 equivalent */
+    --primary-foreground: 355 100% 100%; /* White text on green */
+    
+    /* Muted grays for secondary elements */
+    --secondary: 217 19% 27%; /* Dark gray */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 215 28% 17%; /* Darker muted */
+    --muted-foreground: 217 10% 64.9%; /* Light gray text */
+    
+    /* Green accent matching your theme */
+    --accent: 142 76% 36%; /* Green-500 */
+    --accent-foreground: 355 100% 100%;
+    
+    /* Destructive red */
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Borders and inputs with subtle contrast */
+    --border: 217 19% 27%; /* Subtle gray border */
+    --input: 217 19% 27%; /* Same as border for consistency */
+    --ring: 142 76% 36%; /* Green focus ring */
+    
+    /* Chart colors with green theme */
+    --chart-1: 142 76% 36%; /* Green */
+    --chart-2: 173 58% 39%; /* Teal */
+    --chart-3: 197 37% 24%; /* Blue */
+    --chart-4: 43 74% 66%; /* Yellow */
+    --chart-5: 27 87% 67%; /* Orange */
+  }
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom shadcn/ui component styling to match site theme */
+@layer components {
+  /* Card styling with subtle borders and backgrounds */
+  .card {
+    @apply bg-card text-card-foreground border border-border/50 backdrop-blur-sm;
+  }
+  
+  /* Button variants matching your green theme */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-2 focus:ring-primary/20;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border/50;
+  }
+  
+  .btn-ghost {
+    @apply hover:bg-accent/10 hover:text-accent-foreground focus:bg-accent/10;
+  }
+  
+  /* Input styling with green focus states */
+  .input {
+    @apply bg-input border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground;
+  }
+  
+  /* Modal/Dialog styling */
+  .dialog-content {
+    @apply bg-popover border border-border/50 backdrop-blur-md shadow-2xl;
+  }
+  
+  /* Custom green accent utilities */
+  .text-accent-green {
+    @apply text-green-400;
+  }
+  
+  .bg-accent-green {
+    @apply bg-green-500/20;
+  }
+  
+  .border-accent-green {
+    @apply border-green-500/30;
+  }
+  
+  /* Enhanced hover states */
+  .hover-lift {
+    @apply transition-all duration-200 hover:scale-[1.02] hover:shadow-lg;
+  }
+  
+  /* Selection states for role/interest buttons */
+  .selection-button {
+    @apply p-3 rounded-lg border-2 transition-all duration-200 text-left;
+  }
+  
+  .selection-button-unselected {
+    @apply border-border bg-card hover:border-border/80 hover:bg-card/80;
+  }
+  
+  .selection-button-selected {
+    @apply border-primary bg-primary/10 text-primary;
+  }
 }
