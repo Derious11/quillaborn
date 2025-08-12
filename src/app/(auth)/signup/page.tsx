@@ -5,7 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { FcGoogle } from "react-icons/fc";
 import { CheckCircle, Mail } from "lucide-react";
-import HeaderSimple from "@/components/layout/HeaderSimple";
+import Header from "@/components/layout/Header";
+import WaitlistModal from "@/components/features/public/WaitlistModal";
 import Footer from "@/components/layout/Footer";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
 import { useRouter } from "next/navigation";
@@ -17,6 +18,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showWaitlistModal, setShowWaitlistModal] = useState(false);
   const router = useRouter();
 
   // Handler for email/password signup
@@ -67,7 +69,8 @@ export default function SignupPage() {
   if (showConfirmation) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#19222e] to-[#21292f] text-white flex flex-col">
-        <HeaderSimple />
+        <Header onJoinWaitlist={() => setShowWaitlistModal(true)} />
+        <WaitlistModal show={showWaitlistModal} onClose={() => setShowWaitlistModal(false)} />
         <main className="flex-1 flex items-center justify-center px-4 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 via-gray-900 to-gray-900 pointer-events-none z-0"></div>
           <div className="absolute inset-0 opacity-50 bg-gray-900 pointer-events-none z-0"></div>
@@ -108,7 +111,8 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#19222e] to-[#21292f] text-white flex flex-col">
-      <HeaderSimple />
+      <Header onJoinWaitlist={() => setShowWaitlistModal(true)} />
+      <WaitlistModal show={showWaitlistModal} onClose={() => setShowWaitlistModal(false)} />
 
       <main className="flex-1 flex items-center justify-center px-4 relative overflow-hidden">
         {/* Gradient overlays for on-brand look */}

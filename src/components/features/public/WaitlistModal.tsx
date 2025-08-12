@@ -59,14 +59,14 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-white"
-          aria-label="Close waitlist modal"
+          aria-label="Close early access modal"
         >
           <XCircle className="w-6 h-6" />
         </button>
 
-        <h3 className="text-2xl font-bold mb-2 text-green-400">Join the Waitlist</h3>
+        <h3 className="text-2xl font-bold mb-2 text-green-400">Join Early Access</h3>
         <p className="text-gray-300 mb-4 text-sm">
-          Enter your email and we’ll let you know as soon as Quillaborn opens for creators.
+          Enter your email and you will be granted early access to Quillaborn!
         </p>
 
         {!submitted ? (
@@ -97,7 +97,7 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
           <div className="bg-green-500/20 border border-green-500/30 px-6 py-4 rounded-xl">
             <p className="text-green-300 font-bold text-lg flex items-center gap-2">
               <Sparkles className="w-5 h-5" />
-              You are in! We will be in touch soon.
+              You are in! Please Signup and start exploring.
             </p>
           </div>
         )}

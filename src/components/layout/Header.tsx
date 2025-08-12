@@ -8,13 +8,12 @@ import Image from "next/image";
 
 const navLinks = [
   { label: "About", href: "/about" },
-  { label: "Blog", href: "/blog" },
   { label: "How It Works", href: "/how-it-works" },
   { label: "Pricing", href: "/pricing" },
-
   { label: "Contact", href: "/contact" },
   { label: "Terms", href: "/terms" },
   { label: "Privacy", href: "/privacy" },
+  { label: "Blog", href: "/blog" },
 ];
 
 interface HeaderProps {
@@ -65,7 +64,7 @@ export default function Header({ onJoinWaitlist }: HeaderProps) {
           onClick={handleJoin}
           className="ml-4 px-4 py-2 text-sm font-semibold rounded bg-green-500 hover:bg-green-400 text-gray-900 shadow hidden md:block"
         >
-          Join Waitlist
+          Join Early Access
         </button>
       </div>
 
@@ -89,7 +88,7 @@ export default function Header({ onJoinWaitlist }: HeaderProps) {
             onClick={handleJoin}
             className="w-full text-left mt-2 px-4 py-2 text-sm font-semibold rounded bg-green-500 hover:bg-green-400 text-gray-900 shadow"
           >
-            Join Waitlist
+            Join Early Access
           </button>
         </div>
       )}

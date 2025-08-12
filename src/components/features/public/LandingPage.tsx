@@ -93,7 +93,7 @@ export default function LandingPage() {
                     type="submit"
                     className="bg-green-500 hover:bg-green-600 text-gray-900 px-8 py-4 rounded-full font-bold transition-all duration-200 transform hover:scale-105 whitespace-nowrap flex items-center gap-2"
                   >
-                    Join Waitlist
+                    Join Early Access
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </>
@@ -143,7 +143,7 @@ export default function LandingPage() {
               {
                 icon: Palette,
                 title: "Build Worlds",
-                desc: "Whether it&apos;s a story, artwork, or wild creative project – bring your ideas to life with the right collaborators."
+                desc: "Whether it is a story, artwork, or wild creative project – bring your ideas to life with the right collaborators."
               },
               {
                 icon: Zap,
@@ -201,7 +201,7 @@ export default function LandingPage() {
             </button>
             <h3 className="text-2xl font-bold mb-4 text-green-400">Join the Community</h3>
             <p className="text-gray-300 mb-6">
-              Have you joined our waitlist for early access? We're currently in early access mode and require waitlist registration.
+              Have you joined Early Access? We're currently in early access and require registration.
             </p>
             
             <div className="space-y-4">
@@ -212,7 +212,7 @@ export default function LandingPage() {
                 }}
                 className="w-full bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
               >
-                No, I need to join the waitlist
+                No, I need to join Early Access
               </button>
               
               <div className="text-center">
@@ -229,7 +229,7 @@ export default function LandingPage() {
             </div>
             
             <p className="text-xs text-gray-400 mt-4 text-center">
-              If you haven't joined the waitlist yet, please do so first to get early access.
+              If you haven't joined Early Access yet, please do so first.
             </p>
           </div>
         </div>

@@ -202,7 +202,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
           {/* Mid-article CTA (matches landing buttons) */}
           <div className="my-12 flex items-center justify-center">
             <Link
-              href="/signup"
+              href="/#waitlist"
               className="bg-green-500 hover:bg-green-600 text-gray-900 px-8 py-4 rounded-full font-bold transition-all duration-200 transform hover:scale-105 whitespace-nowrap"
             >
               Join Early Access
@@ -252,20 +252,14 @@ export default async function BlogPost({ params }: { params: { slug: string } })
             Ready to join the <span className="text-green-400">community</span>?
           </h3>
           <p className="text-lg text-gray-300 mb-8">
-            We’re in early access. Join the waitlist or sign up to be part of the first wave.
+            We’re in early access. Click below to join the list and start exploring Quillaborn.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/signup"
+              href="/#waitlist"
               className="bg-green-500 hover:bg-green-600 text-gray-900 px-8 py-4 rounded-full font-bold transition-all duration-200 transform hover:scale-105"
             >
-              Sign Up
-            </Link>
-            <Link
-              href="/#waitlist"
-              className="bg-gray-800 hover:bg-gray-700 text-white px-8 py-4 rounded-full font-bold transition-all duration-200"
-            >
-              Join Waitlist
+              Join Early Access
             </Link>
           </div>
         </div>

@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { FcGoogle } from "react-icons/fc";
-import HeaderSimple from "@/components/layout/HeaderSimple";
+import Header from "@/components/layout/Header";
+import WaitlistModal from "@/components/features/public/WaitlistModal";
 import Footer from "@/components/layout/Footer";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
 import { useRouter } from "next/navigation";
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showWaitlistModal, setShowWaitlistModal] = useState(false);
   const router = useRouter();
 
   // Handler for email/password login
@@ -84,7 +86,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#19222e] to-[#21292f] text-white flex flex-col">
-      <HeaderSimple />
+      <Header onJoinWaitlist={() => setShowWaitlistModal(true)} />
+      <WaitlistModal show={showWaitlistModal} onClose={() => setShowWaitlistModal(false)} />
 
       <main className="flex-1 flex items-center justify-center px-4 relative overflow-hidden">
         {/* Gradient overlays for on-brand look */}
