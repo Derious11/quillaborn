@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { 
@@ -12,7 +12,8 @@ import {
   FolderOpen,
   Menu,
   X,
-  Settings
+  Settings,
+  ChevronDown
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import type { Profile } from '@/lib/types';
@@ -32,8 +33,16 @@ interface SidebarProps {
   setSidebarOpen?: (open: boolean) => void;
 }
 
-export default function Sidebar({ user, profile, activeTab, sidebarOpen: externalSidebarOpen, setSidebarOpen: externalSetSidebarOpen }: SidebarProps) {
+export default function Sidebar({
+  user,
+  profile,
+  activeTab,
+  sidebarOpen: externalSidebarOpen,
+  setSidebarOpen: externalSetSidebarOpen,
+}: SidebarProps) {
   const [internalSidebarOpen, setInternalSidebarOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
   
   // Use external state if provided, otherwise use internal state
@@ -49,10 +58,29 @@ export default function Sidebar({ user, profile, activeTab, sidebarOpen: externa
     { id: 'projects', label: 'Projects', icon: FolderOpen, href: '/dashboard/projects' },
   ];
 
-  const handleNavigation = (item: NavigationItem) => {
+  const isAdmin = ["admin", "owner"].includes((profile as any)?.role);
+
+  const handleNavigation = (href: string) => {
     setSidebarOpen(false);
-    router.push(item.href);
+    setMenuOpen(false);
+    router.push(href);
   };
+
+  // Close dropdown on outside click / Esc
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   return (
     <>
@@ -98,7 +126,7 @@ export default function Sidebar({ user, profile, activeTab, sidebarOpen: externa
                 return (
                   <li key={item.id}>
                     <button
-                      onClick={() => handleNavigation(item)}
+                      onClick={() => handleNavigation(item.href)}
                       className={`
                         w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors
                         ${activeTab === item.id 
@@ -128,16 +156,69 @@ export default function Sidebar({ user, profile, activeTab, sidebarOpen: externa
                 <p className="text-sm font-medium text-white truncate">
                   {profile.display_name || profile.username}
                 </p>
+                {/* Trigger */}
                 <button
-                  onClick={() => {
-                    setSidebarOpen(false);
-                    router.push('/dashboard/settings');
-                  }}
-                  className="flex items-center gap-2 text-xs text-gray-400 hover:text-green-400 transition-colors mt-1"
+                  onClick={() => setMenuOpen((s) => !s)}
+                  className="mt-1 inline-flex items-center gap-2 text-xs text-gray-400 hover:text-green-400 transition-colors"
+                  aria-expanded={menuOpen}
+                  aria-haspopup="menu"
                 >
                   <Settings size={12} />
                   Settings
+                  <ChevronDown size={14} className={`transition-transform ${menuOpen ? "rotate-180" : ""}`} />
                 </button>
+
+                {/* Dropdown */}
+                {menuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute bottom-12 left-0 z-50 w-56 rounded-xl border border-white/10 bg-gray-900/95 backdrop-blur shadow-xl overflow-hidden"
+                  >
+                    <button
+                      role="menuitem"
+                      onClick={() => handleNavigation("/dashboard/settings")}
+                      className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-white/10"
+                    >
+                      Account Settings
+                    </button>
+
+                    {isAdmin && (
+                      <>
+                        <div className="px-4 py-2 text-xs uppercase tracking-wide text-gray-400 border-t border-white/5">
+                          Admin
+                        </div>
+                        <button
+                          role="menuitem"
+                          onClick={() => handleNavigation("/admin/users")}
+                          className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-white/10"
+                        >
+                          Users
+                        </button>
+                        <button
+                          role="menuitem"
+                          onClick={() => handleNavigation("/admin/waitlist")}
+                          className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-white/10"
+                        >
+                          Waitlist
+                        </button>
+                        <button
+                          role="menuitem"
+                          onClick={() => handleNavigation("/admin/metrics")}
+                          className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-white/10"
+                        >
+                          Metrics
+                        </button>
+                        <button
+                          role="menuitem"
+                          onClick={() => handleNavigation("/admin/settings")}
+                          className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-white/10"
+                        >
+                          Admin Settings
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -145,4 +226,4 @@ export default function Sidebar({ user, profile, activeTab, sidebarOpen: externa
       </div>
     </>
   );
-} 
+}

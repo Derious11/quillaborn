@@ -80,8 +80,7 @@ export default function PricingPage() {
                 <li>License & contract templates</li>
                 <li>Shared ownership management tools</li>
                 <li>Monetization toolkits</li>
-                <li>Invite-only NSFW zones</li>
-              </ul>
+               </ul>
             </div>
           </div>
 
