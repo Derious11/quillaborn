@@ -59,13 +59,21 @@ export default function Header({ onJoinWaitlist }: HeaderProps) {
           </button>
         </div>
 
-        {/* CTA Button */}
-        <button
-          onClick={handleJoin}
-          className="ml-4 px-4 py-2 text-sm font-semibold rounded bg-green-500 hover:bg-green-400 text-gray-900 shadow hidden md:block"
-        >
-          Join Early Access
-        </button>
+        {/* CTA Buttons */}
+        <div className="hidden md:flex items-center space-x-3">
+          <Link
+            href="/login"
+            className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-green-400 transition-colors duration-200"
+          >
+            Login
+          </Link>
+          <button
+            onClick={handleJoin}
+            className="px-4 py-2 text-sm font-semibold rounded bg-green-500 hover:bg-green-400 text-gray-900 shadow"
+          >
+            Join Early Access
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu Dropdown */}
@@ -84,12 +92,22 @@ export default function Header({ onJoinWaitlist }: HeaderProps) {
             </Link>
           ))}
 
-          <button
-            onClick={handleJoin}
-            className="w-full text-left mt-2 px-4 py-2 text-sm font-semibold rounded bg-green-500 hover:bg-green-400 text-gray-900 shadow"
-          >
-            Join Early Access
-          </button>
+          <div className="mt-2 space-y-2">
+            <button
+              onClick={handleJoin}
+              className="w-full text-left px-4 py-2 text-sm font-semibold rounded bg-green-500 hover:bg-green-400 text-gray-900 shadow"
+            >
+              Join Early Access
+            </button>
+            
+            <Link
+              href="/login"
+              onClick={() => setIsOpen(false)}
+              className="block w-full text-center px-4 py-2 text-sm font-medium text-gray-300 hover:text-green-400 transition-colors duration-200 border border-gray-600 rounded"
+            >
+              Login
+            </Link>
+          </div>
         </div>
       )}
     </header>

@@ -143,7 +143,7 @@ export default function RolePage({ user }: RolePageProps) {
               disabled={selectedRole === null || saving}
               className="bg-green-500 hover:bg-green-600 text-gray-900 px-8 py-4 rounded-full font-bold transition-all duration-200 transform hover:scale-105 flex items-center gap-2 w-full justify-center disabled:opacity-50"
             >
-              {saving ? "Saving..." : <>Complete Setup <ArrowRight className="w-5 h-5" /></>}
+              {saving ? "Saving..." : <>Continue <ArrowRight className="w-5 h-5" /></>}
             </button>
           </form>
         </div>

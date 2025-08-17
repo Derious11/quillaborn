@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { XCircle, Sparkles, ArrowRight } from "lucide-react";
+import { XCircle, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 
 interface WaitlistModalProps {
   show: boolean;
@@ -16,38 +16,47 @@ function isValidEmail(email: string): boolean {
 export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
+    // Normalize before validating/sending
+    const normalizedEmail = (email || "").trim().toLowerCase();
+
     // Email validation
-    if (!email || !isValidEmail(email)) {
+    if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
       setError("Please enter a valid email address.");
       return;
     }
 
     try {
-      const res = await fetch('/api/waitlist', {
+      setSubmitting(true);
+      const res = await fetch("/api/waitlist", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedEmail }),
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to submit");
+        let message = "Failed to submit";
+        try {
+          const errorData = await res.json();
+          message = errorData.error || message;
+        } catch {
+          /* ignore JSON parse failures */
+        }
+        throw new Error(message);
       }
-      
+
       setSubmitted(true);
       setEmail("");
-    } catch (error: any) {
-      setError(error.message || "Something went wrong. Please try again.");
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -66,7 +75,8 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
 
         <h3 className="text-2xl font-bold mb-2 text-green-400">Join Early Access</h3>
         <p className="text-gray-300 mb-4 text-sm">
-          Enter your email and you will be granted early access to Quillaborn!
+          Enter your email to join the waitlist. If you later sign up with this
+          same email, you’ll get instant access.
         </p>
 
         {!submitted ? (
@@ -82,10 +92,20 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
             />
             <button
               type="submit"
-              className="bg-green-500 hover:bg-green-600 text-gray-900 font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-all"
+              disabled={submitting}
+              className="bg-green-500 hover:bg-green-600 disabled:opacity-60 disabled:cursor-not-allowed text-gray-900 font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-all"
             >
-              Submit
-              <ArrowRight className="w-4 h-4" />
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Submitting…
+                </>
+              ) : (
+                <>
+                  Submit
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
             {error && (
               <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg">
@@ -94,11 +114,21 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
             )}
           </form>
         ) : (
-          <div className="bg-green-500/20 border border-green-500/30 px-6 py-4 rounded-xl">
+          <div className="bg-green-500/20 border border-green-500/30 px-6 py-4 rounded-xl space-y-2">
             <p className="text-green-300 font-bold text-lg flex items-center gap-2">
               <Sparkles className="w-5 h-5" />
-              You are in! Please Signup and start exploring.
+              You’re on the list!
             </p>
+            <p className="text-sm text-green-200">
+              Use this <strong>same email</strong> to sign up for instant access.
+            </p>
+            <a
+              href="/signup"
+              className="inline-flex items-center gap-2 mt-2 bg-green-500 hover:bg-green-600 text-gray-900 font-bold py-2 px-4 rounded-lg"
+            >
+              Go to Signup
+              <ArrowRight className="w-4 h-4" />
+            </a>
           </div>
         )}
       </div>

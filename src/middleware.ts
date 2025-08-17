@@ -1,114 +1,72 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+// src/middleware.ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+
+const PROTECTED = [/^\/dashboard(?:\/|$)/, /^\/u\/.*/]
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
+  const { pathname } = req.nextUrl
+  if (!PROTECTED.some(rx => rx.test(pathname))) return NextResponse.next()
+
+  const res = NextResponse.next()
   
-  // Get the current path
-  const { pathname } = req.nextUrl;
-
-  // Protected routes that require early access
-  const protectedRoutes = [
-    '/dashboard',
-    '/username',
-    '/bio',
-    '/interest',
-    '/role',
-    '/profile'
-  ];
-
-  // Public routes that should not be protected
-  const publicRoutes = [
-    '/login',
-    '/signup',
-    '/no-access',
-    '/',
-    '/explore',
-    '/about',
-    '/contact',
-    '/how-it-works',
-    '/pricing',
-    '/privacy',
-    '/terms'
-  ];
-
-  // Check if the current path is a protected route
-  const isProtectedRoute = protectedRoutes.some(route => 
-    pathname.startsWith(route)
-  );
-
-  // Check if the current path is a public route
-  const isPublicRoute = publicRoutes.some(route => 
-    pathname.startsWith(route)
-  );
-
-  // Skip middleware for public routes
-  if (isPublicRoute) {
-    return res;
-  }
-
-  // Only run auth checks for protected routes
-  if (isProtectedRoute) {
-    try {
-      const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          cookies: {
-            get(name: string) {
-              return req.cookies.get(name)?.value;
-            },
-            set(name: string, value: string, options: CookieOptions) {
-              res.cookies.set({ name, value, ...options });
-            },
-            remove(name: string, options: CookieOptions) {
-              res.cookies.set({ name, value: '', ...options, maxAge: 0 });
-            },
-          },
-        }
-      );
-
-      // Check if user is authenticated
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        // User is not authenticated, redirect to login
-        return NextResponse.redirect(new URL('/login', req.url));
-      }
-
-      // User is authenticated, check if they have early access
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('early_access')
-        .eq('id', session.user.id)
-        .single();
-
-      if (!profile?.early_access) {
-        // User doesn't have early access, redirect to no-access page
-        return NextResponse.redirect(new URL('/no-access', req.url));
-      }
-    } catch (error) {
-      // If there's an error parsing cookies or any other middleware error,
-      // just continue without blocking the request
-      console.error('Middleware auth error:', error);
-      return res;
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          req.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          res.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+        },
+        remove(name: string, options: CookieOptions) {
+          req.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          res.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+        },
+      },
     }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.redirect(new URL('/login', req.url))
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id,onboarding_complete,early_access')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.onboarding_complete) {
+    return NextResponse.redirect(new URL('/onboarding', req.url))
   }
 
-  return res;
+  if (!profile.early_access && pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/access-denied', req.url))
+  }
+
+  return res
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
-  ],
-};
+  matcher: ['/dashboard/:path*', '/u/:path*'],
+}

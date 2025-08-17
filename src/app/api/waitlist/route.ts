@@ -1,39 +1,40 @@
+// src/app/api/waitlist/route.ts
 import { NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
-// Initialize Supabase client
+// Ensure this route runs on Node (not Edge) since it uses the service-role key
+export const runtime = "nodejs";
+// Optional: avoid caching of responses
+export const dynamic = "force-dynamic";
+
+// --- Supabase (server) ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Basic email validation (keep simple to avoid false negatives)
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: Request) {
   try {
-    // Check environment variables
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('Missing environment variables:', {
-        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
-      });
+    // Guard env
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Waitlist API: missing Supabase environment variables");
       return NextResponse.json(
         { error: "Server configuration error" },
         { status: 500 }
       );
     }
 
-    const body = await req.json();
-    const { email } = body;
+    // Parse & normalize
+    const body = await req.json().catch(() => ({}));
+    const rawEmail = typeof body?.email === "string" ? body.email : "";
+    const email = rawEmail.trim().toLowerCase();
 
-    // Validate email
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json(
-        { error: "Email is required" },
-        { status: 400 }
-      );
+    // Validate
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json(
         { error: "Invalid email format" },
@@ -41,55 +42,41 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if email already exists
-    const { data: existingEntry, error: checkError } = await supabase
-      .from('waitlist')
-      .select('id')
-      .eq('email', email)
-      .single();
-
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
-      console.error('Error checking existing email:', checkError);
-      return NextResponse.json(
-        { error: "Database connection error" },
-        { status: 500 }
+    // Idempotent upsert:
+    // - Requires DB migration that adds:
+    //   email_norm GENERATED ALWAYS AS (lower(btrim(email))) STORED
+    //   and UNIQUE INDEX on (email_norm)
+    // - We conflict on 'email_norm' to make uniqueness case-insensitive.
+    const { error } = await supabase
+      .from("waitlist")
+      .upsert(
+        [
+          {
+            email, // normalized
+            status: "pending",
+            notes: "Submitted via website waitlist form",
+          },
+        ],
+        { onConflict: "email_norm" }
       );
-    }
-
-    if (existingEntry) {
-      return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 409 }
-      );
-    }
-
-    // Insert new waitlist entry
-    const { data, error } = await supabase
-      .from('waitlist')
-      .insert([
-        {
-          email: email,
-          status: 'pending',
-          notes: 'Submitted via website waitlist form'
-        }
-      ])
-      .select();
 
     if (error) {
-      console.error('Supabase insert error:', error);
+      // Do NOT echo DB details to the client
+      console.error("Waitlist upsert error:", error);
       return NextResponse.json(
-        { error: `Failed to add to waitlist: ${error.message}` },
+        { error: "Failed to add to waitlist" },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: "Successfully added to waitlist" 
+    // Friendly success even if the email already existed (prevents enumeration)
+    return NextResponse.json({
+      success: true,
+      message:
+        "You’re on the list. Use this same email to sign up for instant access.",
     });
-
-  } catch (err: any) {
-    console.error('Waitlist API error:', err);
+  } catch (err) {
+    console.error("Waitlist API unexpected error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

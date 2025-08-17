@@ -1,99 +1,78 @@
-import { createSupabaseServerClient } from '@/lib/supabaseServer';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+
+// Force dynamic (no prerender), keep Node runtime
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/dashboard';
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const token_hash = url.searchParams.get("token_hash");
+  const type = url.searchParams.get("type") as
+    | "signup" | "magiclink" | "recovery" | "invite" | "email_change" | null;
+  // optional deep-link after auth, defaults to dashboard
+  const next = url.searchParams.get("next") || "/dashboard";
 
-  console.log('Auth callback received:', { code: !!code, next, origin });
-
-  if (code) {
-    const supabase = createSupabaseServerClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    
-    if (!error) {
-      // Get the user to check their profile
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        console.log('User authenticated:', { id: user.id, email: user.email });
-        
-        // Check if user has a profile
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, username, display_name, onboarding_complete, early_access')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        console.log('Profile check result:', { profile, profileError });
-
-        let redirectPath = next;
-        
-        if (!profile) {
-          console.log('No profile found, creating new profile for user:', user.id);
-          // No profile exists, create one for the new user
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              id: user.id,
-              email: user.email,
-              display_name: user.user_metadata?.name || null,
-              onboarding_complete: false,
-              early_access: false // Default to no early access
-            });
-
-          console.log('Profile creation result:', { insertError });
-
-          if (insertError) {
-            console.error('Error creating profile:', insertError);
-            // If profile creation fails, redirect to no access page
-            redirectPath = '/no-access';
-          } else {
-            // Profile created successfully, check early access
-            console.log('Profile created successfully, checking early access');
-            if (false) { // Default to no early access for new users
-              redirectPath = '/username';
-            } else {
-              redirectPath = '/no-access';
-            }
-          }
-        } else {
-          // Profile exists, check early access first
-          console.log('Profile exists, checking early access');
-          console.log('Profile details:', { 
-            id: profile.id, 
-            username: profile.username, 
-            display_name: profile.display_name, 
-            onboarding_complete: profile.onboarding_complete,
-            early_access: profile.early_access
-          });
-          
-          if (!profile.early_access) {
-            console.log('User does not have early access, redirecting to no-access page');
-            redirectPath = '/no-access';
-          } else if (!profile.onboarding_complete) {
-            console.log('User has early access but onboarding incomplete, redirecting to onboarding');
-            redirectPath = '/username';
-          } else {
-            console.log('User has early access and onboarding complete, redirecting to dashboard');
-            redirectPath = '/dashboard';
-          }
-        }
-
-        const fullRedirectUrl = `${origin}${redirectPath}`;
-        console.log('Auth successful, redirecting to:', fullRedirectUrl);
-        console.log('URL components:', { origin, redirectPath, fullRedirectUrl });
-        return NextResponse.redirect(fullRedirectUrl);
-      } else {
-        console.log('No user found after auth exchange');
-      }
-    } else {
-      console.error('Auth error:', error);
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.delete({ name, ...options });
+        },
+      },
     }
+  );
+
+  try {
+    // 1) Establish the session (handles OAuth + modern email links)
+    if (code) {
+      await supabase.auth.exchangeCodeForSession(code);
+    } else if (token_hash && type) {
+      // 2) Older OTP-style links (token_hash&type)
+      await supabase.auth.verifyOtp({ token_hash, type });
+    }
+  } catch {
+    // ignore; we'll branch below based on session/user
   }
 
-  console.log('Auth failed, redirecting to login');
-  // If there's an error or no code, redirect to login
-  return NextResponse.redirect(`${origin}/login`);
-} 
+  // If we have a user, decide destination by profile gates
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.redirect(new URL("/login?e=callback", url));
+  }
+
+  // Small wait-loop: give the trigger a moment to create the profile row
+  // (handles first-signup edge cases)
+  let profile: { onboarding_complete: boolean; early_access: boolean } | null = null;
+  for (let i = 0; i < 5; i++) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("onboarding_complete,early_access")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (data) { profile = data; break; }
+    await new Promise(r => setTimeout(r, 150));
+  }
+
+  // DO NOT insert a profile here. The DB trigger is the single source of truth.
+
+  let dest = "/dashboard";
+  if (!profile?.onboarding_complete) dest = "/onboarding";
+  else if (!profile.early_access) dest = "/access-denied";
+
+  // Allow an explicit next param to override success path (only allow internal paths)
+  if (dest === "/dashboard" && next.startsWith("/")) dest = next;
+
+  return NextResponse.redirect(new URL(dest, url));
+}

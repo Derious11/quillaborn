@@ -2,56 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Sparkles, PenTool, Users, ArrowRight, MessageCircle, Palette, Zap, XCircle } from "lucide-react";
+import { PenTool, Users, ArrowRight, MessageCircle, Palette, Zap, XCircle } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import WaitlistModal from "@/components/features/public/WaitlistModal";
 
-// Email validation function (can be reused anywhere)
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
 export default function LandingPage() {
-  const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showPopup, setShowPopup] = useState(false);
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
-
-  // Strong typing for the event
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    // Validate email before submitting
-    if (!email || !isValidEmail(email)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/waitlist', {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email,
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to submit");
-      }
-      
-      setSubmitted(true);
-      setEmail("");
-    } catch (error: any) {
-      setError(error.message || "Something went wrong. Please try again.");
-    }
-  };
+  const [showPopup, setShowPopup] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -72,45 +30,21 @@ export default function LandingPage() {
             <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto mb-10 leading-relaxed">
               ...where you can belong to a creative community. Where you can collaborate with fellow artists, writers, and dreamers. Where talking about your next big project is just as easy as sharing your latest work.
             </p>
-            <form
-              id="waitlist"
-              className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-lg mx-auto"
-              onSubmit={handleSubmit}
-              autoComplete="off"
-            >
-              {!submitted ? (
-                <>
-                  <input
-                    type="email"
-                    required
-                    placeholder="Enter your email"
-                    className="px-6 py-4 rounded-full w-full sm:flex-1 text-gray-900 bg-white focus:outline-none focus:ring-4 focus:ring-green-500/20 text-center sm:text-left"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="email"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-green-500 hover:bg-green-600 text-gray-900 px-8 py-4 rounded-full font-bold transition-all duration-200 transform hover:scale-105 whitespace-nowrap flex items-center gap-2"
-                  >
-                    Join Early Access
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </>
-              ) : (
-                <div className="bg-green-500/20 border border-green-500/30 px-8 py-4 rounded-full">
-                  <p className="text-green-300 font-bold text-lg flex items-center gap-2">
-                    <Sparkles className="w-5 h-5" />
-                    You&apos;re in! We&apos;ll be in touch soon.
-                  </p>
-                </div>
-              )}
-            </form>
-            {error && (
-              <p className="text-red-400 text-sm mt-4 bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-lg inline-block">
-                {error}
-              </p>
-            )}
+            <div className="flex flex-col items-center">
+              <button
+                onClick={() => setShowWaitlistModal(true)}
+                className="bg-green-500 hover:bg-green-600 text-gray-900 px-8 py-4 rounded-full font-bold transition-all duration-200 transform hover:scale-105 whitespace-nowrap flex items-center gap-2"
+              >
+                Join Early Access
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <Link
+                href="/login"
+                className="text-sm text-gray-400 hover:text-green-400 transition-colors duration-200 mt-3"
+              >
+                Already have access? Login
+              </Link>
+            </div>
           </div>
         </div>
         <div className="absolute top-20 left-10 w-20 h-20 bg-green-500/10 rounded-full animate-pulse hidden lg:block"></div>
@@ -156,7 +90,7 @@ export default function LandingPage() {
                 desc: "Skip the trolls and ghosters. A curated community focused on serious creativity and meaningful collaboration."
               },
               {
-                icon: Sparkles,
+                icon: Zap,
                 title: "Creator Tools",
                 desc: "Access tools designed by creators, for creators. Everything you need to organize projects and grow your creative practice."
               }
