@@ -25,6 +25,12 @@ export default function DashboardLayout({ user, profile, userInterests, userRole
   const getActiveTab = () => {
     // Remove trailing slash and split
     const cleanPath = pathname.replace(/\/$/, '');
+    
+    // Handle profile pages accessed through dashboard explore
+    if (cleanPath.includes('/dashboard/u/')) {
+      return 'explore';
+    }
+    
     const path = cleanPath.split('/').pop() || 'home';
     return path === 'dashboard' ? 'home' : path;
   };

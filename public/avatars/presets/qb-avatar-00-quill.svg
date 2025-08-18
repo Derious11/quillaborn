@@ -1,0 +1,24 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="#004d26" stroke="#00cc66" stroke-width="8"/>
+  
+  <!-- Quill Feather -->
+  <path d="M200 400 
+           C180 300, 220 180, 320 100 
+           Q280 180, 260 240 
+           Q250 280, 270 340 
+           Q230 360, 200 400 Z" 
+        fill="none" stroke="#00ff99" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Quill Spine -->
+  <line x1="210" y1="380" x2="310" y2="120" stroke="#00ff99" stroke-width="3"/>
+  
+  <!-- Spiral base (stylized) -->
+  <path d="M200 400 
+           q-40 -20 -20 -60 
+           q20 -30 50 -10 
+           q20 20 0 40 
+           q-15 15 -30 5" 
+        fill="none" stroke="#00ff99" stroke-width="3"/>
+</svg>

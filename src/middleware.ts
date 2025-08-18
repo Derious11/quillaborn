@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
-const PROTECTED = [/^\/dashboard(?:\/|$)/, /^\/u\/.*/]
+const PROTECTED = [/^\/dashboard(?:\/|$)/]
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -68,5 +68,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/u/:path*'],
+  matcher: ['/dashboard/:path*'],
 }

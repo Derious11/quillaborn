@@ -8,6 +8,8 @@ import type { Profile } from '@/lib/types';
 import { User as UserIcon, Hash, User as UserNameIcon, FileText, Users, Briefcase, Heart, Edit2 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { useSupabase } from '@/components/providers/SupabaseProvider';
+import TimelineComposer from '@/components/profile/TimelineComposer';
+import TimelineList from '@/components/profile/TimelineList';
 
 interface ProfilePageProps {
   user: User;
@@ -308,6 +310,19 @@ export default function ProfilePage({ user, profile, userInterests, userRole, pr
               <p className="text-gray-400">No interests selected</p>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Timeline Section */}
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-white">Share an Update</h2>
+          <TimelineComposer />
+        </div>
+        
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-white">Your Posts</h2>
+          <TimelineList profileId={user.id} isOwner={true} />
         </div>
       </div>
 

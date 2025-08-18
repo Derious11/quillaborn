@@ -75,6 +75,12 @@ export default function ExploreContent({ inDashboard = false }: { inDashboard?: 
       .from(VIEW_NAME)
       .select('*', { count: 'exact' });
 
+    // TODO: Add onboarding_complete filtering at the database view level instead
+    // Temporarily removing this filter since user_profiles_public view may not include onboarding_complete
+    // if (inDashboard) {
+    //   query = query.eq('onboarding_complete', true);
+    // }
+
     if (term) {
       // Search both display_name and username
       query = query.or(`display_name.ilike.%${term}%,username.ilike.%${term}%`);
