@@ -1,4 +1,7 @@
 import { Avatar } from "@/components/ui/avatar";
+import FollowCounts from '@/components/features/social/follow/FollowCounts';
+import FollowButton from '@/components/features/social/follow/FollowButton';
+import MessageButton from '@/components/features/social/messages/MessageButton';
 
 type PublicViewProfile = {
   id: string;
@@ -31,6 +34,12 @@ export default function PublicProfile({ profile }: { profile: PublicViewProfile 
           {profile.username && (
             <p className="text-sm text-gray-400">@{profile.username}</p>
           )}
+
+          <div className="flex items-center gap-3 mt-2">
+            <FollowCounts profileId={profile.id} username={profile.username} />
+            <FollowButton targetProfileId={profile.id} />
+            <MessageButton recipientId={profile.id} /> {/* NEW */}
+          </div>
 
           {/* Roles */}
           {roles.length > 0 && (
