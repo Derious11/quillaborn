@@ -1,7 +1,7 @@
 import { Avatar } from "@/components/ui/avatar";
-import FollowCounts from '@/components/features/social/follow/FollowCounts';
-import FollowButton from '@/components/features/social/follow/FollowButton';
-import MessageButton from '@/components/features/social/messages/MessageButton';
+import FollowCounts from "@/components/features/social/follow/FollowCounts";
+import FollowButton from "@/components/features/social/follow/FollowButton";
+import MessageButton from "@/components/features/social/messages/MessageButton";
 
 type PublicViewProfile = {
   id: string;
@@ -18,30 +18,45 @@ type PublicViewProfile = {
 export default function PublicProfile({ profile }: { profile: PublicViewProfile }) {
   const roles = (profile.roles || []).filter(Boolean);
   const interests = (profile.interests || []).filter(Boolean);
+  const name = profile.display_name ?? profile.username ?? "Profile";
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
-      <div className="flex items-center gap-6">
-        <Avatar
-          profile={profile as any}
-          alt={`${profile.display_name ?? profile.username} avatar`}
-          size={20}
-        />
-        <div>
-          <h1 className="text-2xl font-bold">
-            {profile.display_name ?? profile.username}
-          </h1>
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* Header: avatar + identity */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+        <div className="sm:self-start shrink-0">
+          <Avatar
+            profile={profile as any}
+            alt={`${name} avatar`}
+            size={16}
+          />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl font-bold truncate">{name}</h1>
           {profile.username && (
-            <p className="text-sm text-gray-400">@{profile.username}</p>
+            <p className="text-sm text-gray-400 truncate">@{profile.username}</p>
           )}
 
-          <div className="flex items-center gap-3 mt-2">
-            <FollowCounts profileId={profile.id} username={profile.username} />
-            <FollowButton targetProfileId={profile.id} />
-            <MessageButton recipientId={profile.id} /> {/* NEW */}
+          {/* Counts + actions (wrap on mobile) */}
+          <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="order-1 sm:order-none">
+              <FollowCounts profileId={profile.id} username={profile.username} />
+            </div>
+
+            {/* Make actions sit on their own line on mobile to avoid squish */}
+            <div className="order-2 sm:order-none flex gap-2 w-full sm:w-auto">
+              {/* Wrappers make them stretch full-width on mobile even if the components don't take className */}
+              <div className="flex-1 sm:flex-none">
+                <FollowButton targetProfileId={profile.id} />
+              </div>
+              <div className="flex-1 sm:flex-none">
+                <MessageButton recipientId={profile.id} />
+              </div>
+            </div>
           </div>
 
-          {/* Roles */}
+          {/* Roles (chips) */}
           {roles.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {roles.map((r, idx) => (
@@ -57,8 +72,11 @@ export default function PublicProfile({ profile }: { profile: PublicViewProfile 
         </div>
       </div>
 
+      {/* Bio */}
       {profile.bio && (
-        <p className="mt-6 leading-relaxed text-gray-200">{profile.bio}</p>
+        <p className="mt-6 text-sm sm:text-base leading-relaxed text-gray-200 break-words">
+          {profile.bio}
+        </p>
       )}
 
       {/* Interests */}
