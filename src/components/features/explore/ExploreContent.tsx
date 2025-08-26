@@ -7,13 +7,13 @@ import ProfileCard from '@/components/features/explore/ProfileCard';
 
 // ---- View + column config ----
 const VIEW_NAME = 'user_profiles_public';
-// Prefer updated_at; fall back to other candidates if not present
 const SORT_COLUMN_CANDIDATES = ['updated_at', 'last_active_at', 'last_seen_at'];
-// The view exposes role and interest NAMES as arrays
 const ROLE_NAMES_COLUMN = 'roles';
 const INTEREST_NAMES_COLUMN = 'interests';
 
 const PAGE_SIZE = 10;
+
+type FollowCounts = { follower_count: number; following_count: number };
 
 export default function ExploreContent({ inDashboard = false }: { inDashboard?: boolean }) {
   const { supabase } = useSupabase();
@@ -23,6 +23,8 @@ export default function ExploreContent({ inDashboard = false }: { inDashboard?: 
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
 
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [counts, setCounts] = useState<Record<string, FollowCounts>>({});
+
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
@@ -53,16 +55,16 @@ export default function ExploreContent({ inDashboard = false }: { inDashboard?: 
           return;
         }
       }
-      // fallback to id desc if none available
       setSortColumn('id');
     })();
   }, [supabase]);
 
   const offset = useMemo(() => page * PAGE_SIZE, [page]);
 
-  const fetchProfiles = async (opts: { append: boolean }) => {
+  const fetchProfiles = async (opts: { append: boolean; pageOverride?: number }) => {
     const term = search.trim();
     const append = opts.append;
+    const pageForFetch = append ? (opts.pageOverride ?? page) : 0;
 
     if (!append) {
       setLoading(true);
@@ -71,34 +73,21 @@ export default function ExploreContent({ inDashboard = false }: { inDashboard?: 
       setLoadingMore(true);
     }
 
-    let query = supabase
-      .from(VIEW_NAME)
-      .select('*', { count: 'exact' });
-
-    // TODO: Add onboarding_complete filtering at the database view level instead
-    // Temporarily removing this filter since user_profiles_public view may not include onboarding_complete
-    // if (inDashboard) {
-    //   query = query.eq('onboarding_complete', true);
-    // }
+    let query = supabase.from(VIEW_NAME).select('*', { count: 'exact' });
 
     if (term) {
-      // Search both display_name and username
       query = query.or(`display_name.ilike.%${term}%,username.ilike.%${term}%`);
     }
-
     if (selectedRole !== '') {
-      // Filter rows whose roles array contains the selected role name
       query = query.contains(ROLE_NAMES_COLUMN, [selectedRole]);
     }
-
     if (selectedInterests.length > 0) {
-      // Filter rows whose interests array contains all selected interest NAMES
       query = query.contains(INTEREST_NAMES_COLUMN, selectedInterests);
     }
 
     query = query.order(sortColumn, { ascending: false, nullsFirst: false });
 
-    const start = append ? offset : 0;
+    const start = append ? pageForFetch * PAGE_SIZE : 0;
     const end = start + PAGE_SIZE - 1;
 
     const { data, error } = await query.range(start, end);
@@ -110,8 +99,43 @@ export default function ExploreContent({ inDashboard = false }: { inDashboard?: 
       return;
     }
 
+    // Update list (with dedupe by id)
     setHasMore((data?.length || 0) === PAGE_SIZE);
-    setProfiles(prev => (append ? [...prev, ...(data || [])] : (data || [])));
+    setProfiles(prev => {
+      const merged = append ? [...prev, ...(data || [])] : (data || []);
+      const seen = new Set<string>();
+      return merged.filter(p => {
+        if (seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
+      });
+    });
+
+    // Batch fetch follow counts for these profiles
+    const ids = (data ?? []).map(p => p.id).filter(Boolean);
+    if (ids.length) {
+      const { data: countRows, error: countsErr } = await supabase
+        .from('profile_follow_counts')
+        .select('profile_id, follower_count, following_count')
+        .in('profile_id', ids);
+
+      if (!countsErr && countRows?.length) {
+        const pageCounts: Record<string, FollowCounts> = {};
+        for (const c of countRows) {
+          pageCounts[c.profile_id] = {
+            follower_count: Number(c.follower_count ?? 0),
+            following_count: Number(c.following_count ?? 0),
+          };
+        }
+        setCounts(prev => (append ? { ...prev, ...pageCounts } : pageCounts));
+      } else if (countsErr) {
+        // If RLS blocks counts (anon), you can allow anon SELECT on follows or expose a counts RPC.
+        console.warn('Counts fetch warning:', countsErr.message);
+        if (!append) setCounts({});
+      }
+    } else if (!append) {
+      setCounts({});
+    }
 
     if (!append) setLoading(false);
     if (append) setLoadingMore(false);
@@ -119,19 +143,21 @@ export default function ExploreContent({ inDashboard = false }: { inDashboard?: 
 
   // Initial + filter/search changes
   useEffect(() => {
-    // Reset to first page on filter/search change
     setPage(0);
     fetchProfiles({ append: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, selectedRole, selectedInterests, sortColumn]);
 
-  // Load more handler
-  const handleLoadMore = async () => {
-    setPage(p => p + 1);
-    await fetchProfiles({ append: true });
+  // Load more handler (fixes stale-offset bug)
+  const handleLoadMore = () => {
+    setPage(prev => {
+      const next = prev + 1;
+      fetchProfiles({ append: true, pageOverride: next });
+      return next;
+    });
   };
 
-  // Debounce search input (simple)
+  // Debounce search input
   const [pendingSearch, setPendingSearch] = useState('');
   useEffect(() => {
     const t = setTimeout(() => setSearch(pendingSearch), 300);
@@ -203,7 +229,12 @@ export default function ExploreContent({ inDashboard = false }: { inDashboard?: 
       {/* Results */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {profiles.map((p) => (
-          <ProfileCard key={p.id} profile={p} inDashboard={inDashboard} />
+          <ProfileCard
+            key={p.id}
+            profile={p}
+            inDashboard={inDashboard}
+            followCounts={counts[p.id]} // NEW: show counts on card
+          />
         ))}
       </div>
 

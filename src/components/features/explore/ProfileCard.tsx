@@ -13,7 +13,20 @@ type PublicProfile = {
   interests?: string[] | null;
 };
 
-export default function ProfileCard({ profile, inDashboard = false }: { profile: PublicProfile; inDashboard?: boolean }) {
+type FollowCounts = {
+  follower_count: number;
+  following_count: number;
+};
+
+export default function ProfileCard({
+  profile,
+  inDashboard = false,
+  followCounts, // NEW: pass in from Explore
+}: {
+  profile: PublicProfile;
+  inDashboard?: boolean;
+  followCounts?: FollowCounts; // NEW
+}) {
   const name = profile.display_name || profile.username || "Unnamed";
   const username = profile.username || "";
   const roleDisplay =
@@ -21,8 +34,10 @@ export default function ProfileCard({ profile, inDashboard = false }: { profile:
   const interests = profile.interests || [];
 
   // Use dashboard route if in dashboard, otherwise use public route
-  const profileHref = username 
-    ? (inDashboard ? `/dashboard/u/${username}` : `/u/${username}`)
+  const profileHref = username
+    ? inDashboard
+      ? `/dashboard/u/${username}`
+      : `/u/${username}`
     : "#";
 
   return (
@@ -66,6 +81,21 @@ export default function ProfileCard({ profile, inDashboard = false }: { profile:
         </div>
       )}
 
+      {/* NEW: follower/following counts */}
+      {followCounts && (
+        <div className="mt-4 flex items-center gap-3 text-xs text-gray-300">
+          <span>
+            <span className="font-semibold">{followCounts.follower_count ?? 0}</span>{" "}
+            Followers
+          </span>
+          <span className="opacity-50">•</span>
+          <span>
+            <span className="font-semibold">{followCounts.following_count ?? 0}</span>{" "}
+            Following
+          </span>
+        </div>
+      )}
+
       <div className="mt-5">
         <Link
           href={profileHref}
@@ -77,4 +107,3 @@ export default function ProfileCard({ profile, inDashboard = false }: { profile:
     </div>
   );
 }
-
