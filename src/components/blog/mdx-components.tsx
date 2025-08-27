@@ -3,6 +3,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Callout from "@/components/blog/callout";
+import SocialLinks from "@/components/ui/SocialLinks";
 
 /** Links: internal -> <Link/>, external -> <a target=_blank/> */
 function A(props: React.AnchorHTMLAttributes<HTMLAnchorElement>) {
@@ -48,6 +49,8 @@ function CTA({ href, children }: { href: string; children: React.ReactNode }) {
 export const mdxComponents = {
   a: A,
   Img,
-  Callout, // 👈 uses your new dark/green Callout.tsx
+  Callout,
   CTA,
+  SocialLinks,  // ✅ now available in MDX as <SocialLinks />
 } as const;
+
