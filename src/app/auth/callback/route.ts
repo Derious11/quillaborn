@@ -52,6 +52,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?e=callback", url));
   }
 
+  // Waitlist check first (use internal service-backed API to avoid RLS issues)
+  const email = (user.email || '').toLowerCase().trim();
+  if (!email) return NextResponse.redirect(new URL("/login?showWaitlist=1", url));
+  // Prefer request origin to avoid env mismatches in dev
+  const origin = url.origin;
+  try {
+    const res = await fetch(`${origin}/api/waitlist/status?email=${encodeURIComponent(email)}`, { cache: 'no-store' });
+    if (res.ok) {
+      const js = await res.json().catch(() => ({ status: 'unknown' }));
+      if (js.status === 'pending') return NextResponse.redirect(new URL(`/no-access?state=pending&email=${encodeURIComponent(email)}`, url));
+      if (js.status !== 'approved') return NextResponse.redirect(new URL(`/no-access?state=unknown&email=${encodeURIComponent(email)}`, url));
+      // approved → continue to onboarding check below
+    } else {
+      // If status endpoint fails, fall back to waitlist modal
+      return NextResponse.redirect(new URL('/login?showWaitlist=1', url));
+    }
+  } catch {
+    return NextResponse.redirect(new URL('/login?showWaitlist=1', url));
+  }
+
   // Small wait-loop: give the trigger a moment to create the profile row
   // (handles first-signup edge cases)
   let profile: { onboarding_complete: boolean; early_access: boolean } | null = null;
@@ -68,8 +88,8 @@ export async function GET(request: NextRequest) {
   // DO NOT insert a profile here. The DB trigger is the single source of truth.
 
   let dest = "/dashboard";
-  if (!profile?.onboarding_complete) dest = "/onboarding";
-  else if (!profile.early_access) dest = "/access-denied";
+  // Approved waitlist: now decide by onboarding completeness
+  if (!profile?.onboarding_complete) dest = "/username";
 
   // Allow an explicit next param to override success path (only allow internal paths)
   if (dest === "/dashboard" && next.startsWith("/")) dest = next;

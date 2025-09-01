@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { PenTool, Users, ArrowRight, MessageCircle, Palette, Zap, XCircle } from "lucide-react";
+import { PenTool, Users, ArrowRight, MessageCircle, Palette, Zap } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import WaitlistModal from "@/components/features/public/WaitlistModal";
 
 export default function LandingPage() {
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -116,7 +115,7 @@ export default function LandingPage() {
             Coming soon. Join creators who want to build something amazing together.
           </p>
           <button
-            onClick={() => setShowPopup(true)}
+            onClick={() => setShowWaitlistModal(true)}
             className="bg-green-500 hover:bg-green-600 text-gray-900 px-8 py-4 rounded-full font-bold transition-all duration-200 transform hover:scale-105 whitespace-nowrap"
           >
             Join the Community
@@ -124,50 +123,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {showPopup && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center px-4">
-          <div className="bg-gray-800 text-white rounded-2xl p-8 max-w-md w-full shadow-xl relative animate-fadeIn">
-            <button
-              onClick={() => setShowPopup(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <XCircle className="w-6 h-6" />
-            </button>
-            <h3 className="text-2xl font-bold mb-4 text-green-400">Join the Community</h3>
-            <p className="text-gray-300 mb-6">
-              Have you joined Early Access? We're currently in early access and require registration.
-            </p>
-            
-            <div className="space-y-4">
-              <button
-                onClick={() => {
-                  setShowPopup(false);
-                  setShowWaitlistModal(true);
-                }}
-                className="w-full bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-              >
-                No, I need to join Early Access
-              </button>
-              
-              <div className="text-center">
-                <span className="text-gray-400 text-sm">or</span>
-              </div>
-              
-              <Link
-                href="/signup"
-                onClick={() => setShowPopup(false)}
-                className="w-full bg-green-500 hover:bg-green-600 text-gray-900 px-6 py-3 rounded-lg font-bold transition-colors inline-block text-center"
-              >
-                Yes, I'm ready to sign up
-              </Link>
-            </div>
-            
-            <p className="text-xs text-gray-400 mt-4 text-center">
-              If you haven't joined Early Access yet, please do so first.
-            </p>
-          </div>
-        </div>
-      )}
 
       <Footer />
     </div>

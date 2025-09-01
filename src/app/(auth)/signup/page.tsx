@@ -1,7 +1,8 @@
 // src/app/(auth)/signup/page.tsx
 "use client";
+export const dynamic = 'force-dynamic';
 
-import React, { useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { FcGoogle } from "react-icons/fc";
@@ -10,11 +11,13 @@ import Header from "@/components/layout/Header";
 import WaitlistModal from "@/components/features/public/WaitlistModal";
 import Footer from "@/components/layout/Footer";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getWaitlistStatus } from "@/lib/waitlist";
 
-export default function SignupPage() {
+function SignupPageInner() {
   const { supabase } = useSupabase(); // must be anon/browser client
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,6 +25,53 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
+  const [approvedInvite, setApprovedInvite] = useState(false);
+  const [canUseForm, setCanUseForm] = useState<boolean>(false);
+  const [emailLocked, setEmailLocked] = useState<string | null>(null);
+
+  useEffect(() => {
+    const pEmail = (searchParams?.get('email') || '').toLowerCase().trim();
+    const pToken = (searchParams?.get('token') || '').trim();
+    if (!pEmail) {
+      setCanUseForm(false);
+      setApprovedInvite(false);
+      return;
+    }
+    setEmail(pEmail);
+    setEmailLocked(pEmail);
+
+    const run = async () => {
+      // If token provided, verify via server API (service role); on success allow immediately
+      if (pToken) {
+        const res = await fetch(`/api/verify-approval-token?email=${encodeURIComponent(pEmail)}&token=${encodeURIComponent(pToken)}`);
+        if (res.ok) {
+          setApprovedInvite(true);
+          setCanUseForm(true);
+          return;
+        }
+        // If token invalid, fall through to status check
+      }
+
+      // Query status via server API (service role)
+      const status = await getWaitlistStatus(pEmail);
+      if (status === 'unknown') {
+        setCanUseForm(false);
+        setShowWaitlistModal(true);
+        return;
+      }
+      if (status === 'approved') {
+        // Allow signup with approved email, but only show the
+        // "approved invite" banner when arriving with a valid token.
+        setCanUseForm(true);
+      } else if (status === 'pending') {
+        router.replace('/no-access?state=pending');
+      } else {
+        setCanUseForm(false);
+        setShowWaitlistModal(true);
+      }
+    };
+    run();
+  }, [searchParams, router]);
 
   // Email/password signup - handles both new users and existing users
   async function handleSignup(e: React.FormEvent) {
@@ -34,7 +84,7 @@ export default function SignupPage() {
       process.env.NEXT_PUBLIC_SITE_URL ||
       "";
 
-    const normEmail = email.trim().toLowerCase();
+    const normEmail = (emailLocked || email).trim().toLowerCase();
 
     try {
       // First, try to sign in with existing credentials
@@ -45,33 +95,39 @@ export default function SignupPage() {
 
       // If sign in successful, redirect to dashboard/onboarding
       if (signInData.session && !signInError) {
-        // User exists and credentials are correct, check their profile for proper routing
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id, username, display_name, onboarding_complete, early_access')
-          .eq('id', signInData.user.id)
-          .single();
+        // Check waitlist status post-login
+        const { data: wl } = await supabase
+          .from('waitlist')
+          .select('status')
+          .eq('email', normEmail)
+          .maybeSingle<{ status: string }>();
 
-        if (!profile) {
-          // No profile exists, redirect to create one
-          router.push("/username");
+        if (wl?.status === 'approved') {
+          // Ensure profile exists (best-effort)
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id,onboarding_complete')
+            .eq('id', signInData.user.id)
+            .maybeSingle();
+          if (!profile) {
+            try {
+              await supabase
+                .from('profiles')
+                .insert({ id: signInData.user.id, email: normEmail })
+                .single();
+            } catch {
+              // ignore if profile already exists or RLS prevents insert
+            }
+          }
+          if (profile?.onboarding_complete) router.push('/dashboard');
+          else router.push('/username');
           return;
         }
-
-        if (!profile.early_access) {
-          // User doesn't have early access
-          router.push("/no-access");
+        if (wl?.status === 'pending') {
+          router.push('/no-access?state=pending');
           return;
         }
-
-        if (!profile.onboarding_complete) {
-          // User has early access but onboarding incomplete
-          router.push("/username");
-          return;
-        }
-
-        // User has early access and onboarding complete
-        router.push("/dashboard");
+        setShowWaitlistModal(true);
         return;
       }
 
@@ -93,7 +149,19 @@ export default function SignupPage() {
 
         // If confirmations are OFF, we already have a session
         if (data.session) {
-          router.push("/username"); // first onboarding step
+          // Check waitlist status now
+          const { data: wl2 } = await supabase
+            .from('waitlist')
+            .select('status')
+            .eq('email', normEmail)
+            .maybeSingle<{ status: string }>();
+          if (wl2?.status === 'approved') {
+            router.push('/username');
+          } else if (wl2?.status === 'pending') {
+            router.push('/no-access?state=pending');
+          } else {
+            setShowWaitlistModal(true);
+          }
           return;
         }
 
@@ -176,9 +244,7 @@ export default function SignupPage() {
               </ul>
             </div>
 
-            <Link href="/login" className="text-green-400 hover:text-green-300 underline">
-              Go to login
-            </Link>
+            {/* Email link will take users directly back into onboarding; no login link needed */}
           </div>
         </main>
 
@@ -189,6 +255,7 @@ export default function SignupPage() {
 
   // Main signup page
   return (
+    <Suspense fallback={null}>
     <div className="min-h-screen bg-gradient-to-br from-[#19222e] to-[#21292f] text-white flex flex-col">
       <Header onJoinWaitlist={() => setShowWaitlistModal(true)} />
       <WaitlistModal
@@ -220,6 +287,12 @@ export default function SignupPage() {
           <p className="text-gray-300 text-center mb-8 text-lg">
             Join Quillaborn — where creators connect &amp; collaborate.
           </p>
+
+          {approvedInvite && (
+            <div className="w-full mb-6 text-sm bg-green-500/15 border border-green-500/30 text-green-200 rounded-xl p-3 text-center">
+              You’re approved for early access. Use the email that received your invite to sign up.
+            </div>
+          )}
 
           {/* Google Sign Up */}
           <button
@@ -300,5 +373,15 @@ export default function SignupPage() {
 
       <Footer />
     </div>
+    </Suspense>
   );
 }
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupPageInner />
+    </Suspense>
+  );
+}
+

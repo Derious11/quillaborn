@@ -37,7 +37,6 @@ function resolvePostPath(slug: string): string | null {
   ];
   for (const p of candidates) if (fs.existsSync(p)) return p;
 
-  // Case-insensitive fallback
   if (!fs.existsSync(CONTENT_DIR)) return null;
   const entries = fs.readdirSync(CONTENT_DIR, { withFileTypes: true });
   const dir = entries.find((e) => e.isDirectory() && e.name.toLowerCase() === slug.toLowerCase());
@@ -70,7 +69,7 @@ function listPostsMeta() {
       const slug = filename.replace(/\.mdx?$/i, "");
       const raw = fs.readFileSync(path.join(CONTENT_DIR, filename), "utf-8");
       const { data } = matter(raw) as { data: Frontmatter };
-      return { slug, ...data };
+      return { slug, ...data } as { slug: string } & Frontmatter;
     })
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 }
@@ -82,7 +81,7 @@ function getRelatedPosts(currentSlug: string, take = 3) {
 }
 
 export async function generateStaticParams() {
-  if (!fs.existsSync(CONTENT_DIR)) return [];
+  if (!fs.existsSync(CONTENT_DIR)) return [] as { slug: string }[];
   const entries = fs.readdirSync(CONTENT_DIR, { withFileTypes: true });
   const params: { slug: string }[] = [];
   for (const e of entries) {
@@ -108,11 +107,10 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const title = data.title ?? params.slug;
   const description = data.excerpt ?? data.description ?? "";
 
-  // Prefer static OG if provided; else dynamic with blog title/subtitle
   const ogImage =
     data.og ||
     `/api/og?title=${encodeURIComponent(title)}&subtitle=${encodeURIComponent(
-      data.ogSubtitle ?? "Quillaborn • Blog"
+      data.ogSubtitle ?? "Quillaborn - Blog"
     )}`;
 
   return {
@@ -131,7 +129,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       description,
       images: [ogImage],
     },
-  };
+  } as any;
 }
 
 export default async function BlogPost({ params }: { params: { slug: string } }) {
@@ -142,7 +140,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
   const title = data.title ?? params.slug;
   const date = data.date ?? "";
   const category = data.category ?? "Build Log";
-  const cover = data.cover || "/og-image.jpg"; // fallback to your site OG bg
+  const cover = data.cover || "/og-image.jpg";
 
   const related = getRelatedPosts(params.slug, 3);
 
@@ -150,19 +148,9 @@ export default async function BlogPost({ params }: { params: { slug: string } })
     <div className="min-h-screen bg-gray-900 text-white">
       {/* HERO */}
       <section className="relative isolate overflow-hidden">
-        {/* Background image */}
-        <Image
-          src={cover}
-          alt=""
-          priority
-          fill
-          className="object-cover object-center opacity-60"
-        />
-        {/* Dark gradient overlay to match landing page feel */}
+        <Image src={cover} alt="" priority fill className="object-cover object-center opacity-60" />
         <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 via-gray-900/80 to-gray-900/95" />
-        {/* Content */}
         <div className="relative max-w-5xl mx-auto px-6 pt-24 pb-14 lg:pt-32">
-          {/* Breadcrumb */}
           <nav className="mb-4 text-sm text-gray-300">
             <Link href="/" className="hover:text-green-400">Home</Link>
             <span className="mx-2 opacity-60">/</span>
@@ -170,7 +158,6 @@ export default async function BlogPost({ params }: { params: { slug: string } })
             <span className="mx-2 opacity-60">/</span>
             <span className="text-gray-400">{title}</span>
           </nav>
-          {/* Category + date pills */}
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <span className="inline-flex items-center rounded-full bg-green-500/20 border border-green-500/30 px-3 py-1 text-sm text-green-300">
               {category}
@@ -181,7 +168,6 @@ export default async function BlogPost({ params }: { params: { slug: string } })
               </span>
             )}
           </div>
-          {/* Title */}
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-extrabold leading-tight">
             <span className="text-white">{title}</span>
           </h1>
@@ -195,11 +181,10 @@ export default async function BlogPost({ params }: { params: { slug: string } })
       <article className="relative">
         <div className="max-w-3xl mx-auto px-6">
           <Prose>
-            {/* date shown above; keep here minimal */}
             <MDXRemote source={content} components={mdxComponents as any} />
           </Prose>
 
-          {/* Mid-article CTA (matches landing buttons) */}
+          {/* Mid-article CTA */}
           <div className="my-12 flex items-center justify-center">
             <Link
               href="/#waitlist"
@@ -236,7 +221,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
                   {p.date && <p className="text-sm text-gray-400 mb-3">{p.date}</p>}
                   {p.excerpt && <p className="text-gray-300 line-clamp-3">{p.excerpt}</p>}
                   <span className="mt-4 inline-block text-sm text-green-400 group-hover:underline">
-                    Read more →
+                    Read more
                   </span>
                 </Link>
               ))}
@@ -252,7 +237,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
             Ready to join the <span className="text-green-400">community</span>?
           </h3>
           <p className="text-lg text-gray-300 mb-8">
-            We’re in early access. Click below to join the list and start exploring Quillaborn.
+            We're in early access. Click below to join the list and start exploring Quillaborn.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -267,3 +252,4 @@ export default async function BlogPost({ params }: { params: { slug: string } })
     </div>
   );
 }
+

@@ -5,6 +5,7 @@
 export type Profile = {
   id: string;
   created_at: string;
+  updated_at?: string;
   username: string;
   display_name: string | null;
   avatar_url: string | null;
@@ -13,5 +14,6 @@ export type Profile = {
   bio: string | null;
   pronouns: { display_text: string } | null;
   onboarding_complete: boolean;
+  early_access?: boolean;
   email: string | null;
 };

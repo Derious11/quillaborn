@@ -10,7 +10,16 @@ export const dynamic = "force-dynamic";
 // --- Supabase (server) ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Explicitly include auth headers to avoid API gateway 403s
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { persistSession: false },
+  global: {
+    headers: {
+      apikey: supabaseServiceKey,
+      Authorization: `Bearer ${supabaseServiceKey}`,
+    },
+  },
+});
 
 // Basic email validation (keep simple to avoid false negatives)
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,7 +38,9 @@ export async function POST(req: Request) {
     // Parse & normalize
     const body = await req.json().catch(() => ({}));
     const rawEmail = typeof body?.email === "string" ? body.email : "";
+    const rawName = typeof body?.name === "string" ? body.name : "";
     const email = rawEmail.trim().toLowerCase();
+    const name = rawName.trim();
 
     // Validate
     if (!email) {
@@ -54,7 +65,8 @@ export async function POST(req: Request) {
           {
             email, // normalized
             status: "pending",
-            notes: "Submitted via website waitlist form",
+            name: name || null,
+            notes: name ? `Submitted via website waitlist form (name: ${name})` : "Submitted via website waitlist form",
           },
         ],
         { onConflict: "email_norm" }

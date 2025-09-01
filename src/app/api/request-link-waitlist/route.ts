@@ -3,9 +3,14 @@ import { cookies } from 'next/headers';
 import { randomBytes } from 'crypto';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 
+// Uses Node.js crypto
+export const runtime = 'nodejs';
+
 async function sendEmail(to: string, url: string) {
   // TODO: integrate your mailer here
-  console.log('Email link to', to, url);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Email link to', to, url);
+  }
 }
 
 export async function POST(req: NextRequest) {

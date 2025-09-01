@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Avatar as QBAvatar } from '@/components/ui/avatar';
 import type { User } from '@supabase/supabase-js';
@@ -24,6 +25,8 @@ interface ProfilePageProps {
 
 export default function ProfilePage({ user, profile, userInterests, userRole, pronounsList }: ProfilePageProps) {
   const { supabase } = useSupabase();
+  const router = useRouter();
+  const [profileVersion, setProfileVersion] = useState<string | null>(profile.updated_at ?? null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingField, setEditingField] = useState<'display_name' | 'bio' | 'pronouns' | 'role' | 'interests' | ''>('');
   const [editValue, setEditValue] = useState<string>('');
@@ -121,16 +124,27 @@ export default function ProfilePage({ user, profile, userInterests, userRole, pr
         console.log('Updating pronouns:', { selectedPronouns, pronounsValue, userId: user.id });
         
         try {
-          const { error: updateError } = await supabase
+          const { data: upd, error: updateError } = await supabase
             .from('profiles')
             .update({ pronoun_id: pronounsValue })
-            .eq('id', user.id);
+            .eq('id', user.id)
+            .eq('updated_at', profileVersion)
+            .select('updated_at')
+            .maybeSingle();
 
           if (updateError) {
             console.error('Pronouns update error:', updateError);
             setError(`Failed to update pronouns: ${updateError.message}`);
             setSaving(false);
             return;
+          }
+          if (!upd) {
+            setError('Your profile was updated elsewhere. Reloaded latest.');
+            router.refresh();
+            setSaving(false);
+            return;
+          } else {
+            setProfileVersion(upd.updated_at as string);
           }
         } catch (err) {
           console.error('Pronouns update exception:', err);
@@ -161,21 +175,32 @@ export default function ProfilePage({ user, profile, userInterests, userRole, pr
             return;
         }
 
-        const { error: updateError } = await supabase
+        const { data: upd, error: updateError } = await supabase
           .from('profiles')
           .update(updateData)
-          .eq('id', user.id);
+          .eq('id', user.id)
+          .eq('updated_at', profileVersion)
+          .select('updated_at')
+          .maybeSingle();
 
         if (updateError) {
           setError('Failed to update profile. Please try again.');
           setSaving(false);
           return;
         }
+        if (!upd) {
+          setError('Your profile was updated elsewhere. Reloaded latest.');
+          router.refresh();
+          setSaving(false);
+          return;
+        } else {
+          setProfileVersion(upd.updated_at as string);
+        }
       }
 
       setIsEditModalOpen(false);
-      // Refresh the page to show updated data
-      window.location.reload();
+      // Refresh the server component data without full reload
+      router.refresh();
     } catch (err) {
       setError('Failed to update profile. Please try again.');
     } finally {

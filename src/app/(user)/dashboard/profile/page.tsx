@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import { createSupabaseServerClient } from '@/lib/supabaseServer';
 import ProfilePage from '@/components/features/user/dashboard/ProfilePage';
 import type { Profile } from '@/lib/types';

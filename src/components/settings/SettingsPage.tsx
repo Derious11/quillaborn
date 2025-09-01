@@ -197,17 +197,38 @@ function ProfileSection({
 
     setSaving(true);
 
-    // optimistic UI: keep values, attempt update
-    const { error } = await supabase
+    // optimistic UI + optimistic concurrency using updated_at
+    // Fetch current updated_at first (lightweight)
+    const { data: current } = await supabase
+      .from('profiles')
+      .select('updated_at')
+      .eq('id', propUser.id)
+      .maybeSingle();
+
+    const { data: upd, error } = await supabase
       .from("profiles")
       .update({
         display_name: form.display_name?.trim() || null,
         username: username || null,
         bio: form.bio?.trim() || null,
       })
-      .eq("id", propUser.id);
+      .eq("id", propUser.id)
+      .eq('updated_at', current?.updated_at)
+      .select('updated_at')
+      .maybeSingle();
 
     setSaving(false);
+    if (!error && !upd) {
+      toast({
+        title: 'Profile changed elsewhere',
+        description: 'We reloaded your latest profile; please re-apply your edits.',
+        variant: 'destructive',
+      });
+      // refresh page data
+      // use a navigation to force a quick refresh without relying on a router here
+      window.location.reload();
+      return;
+    }
 
     if (error) {
       toast({

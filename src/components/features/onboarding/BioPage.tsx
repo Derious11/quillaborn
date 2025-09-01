@@ -134,37 +134,7 @@ export default function BioPage({ user, pronounsList }: BioPageProps) {
     }
   };
 
-  const handleSkip = async () => {
-    if (!agreeToTerms || !agreeToPrivacy) {
-      setError("Please agree to both Terms of Service and Privacy Policy.");
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      // Call the RPC function for skipping bio
-      const { error: rpcError } = await supabase
-        .rpc('complete_onboarding', {
-          input_bio: null,
-          input_pronoun_id: null,
-          input_terms_version: termsVersion,
-          input_privacy_version: privacyVersion
-        });
-
-      if (rpcError) {
-        setError("Failed to complete onboarding. Please try again.");
-        setSaving(false);
-        return;
-      }
-
-      router.push("/dashboard");
-    } catch (err) {
-      setError("Failed to complete onboarding. Please try again.");
-      setSaving(false);
-    }
-  };
+  // Skip option removed: users must complete this step after agreeing to legal documents.
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
@@ -177,14 +147,14 @@ export default function BioPage({ user, pronounsList }: BioPageProps) {
         <div className="relative z-10 bg-gray-800 bg-opacity-90 rounded-2xl shadow-2xl px-8 py-10 max-w-2xl w-full mx-auto text-center">
           <div className="mb-8">
             <span className="inline-block bg-green-500/20 px-4 py-1 rounded-full text-green-400 text-sm font-bold">
-              Step 4 of 4 (Optional)
+              Step 4 of 4
             </span>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold mb-4 flex justify-center items-center gap-2">
             <Sparkles className="text-green-400" /> Tell Us About Yourself
           </h1>
           <p className="text-lg text-gray-300 mb-8">
-            Share a bit about yourself with the community. This helps others connect with you. (Optional)
+            Share a bit about yourself with the community. This helps others connect with you.
           </p>
           
           <form onSubmit={handleNext} className="space-y-6">
@@ -311,19 +281,11 @@ export default function BioPage({ user, pronounsList }: BioPageProps) {
               <div className="text-red-400 text-sm mt-4">{error}</div>
             )}
             
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={handleSkip}
-                disabled={!agreeToTerms || !agreeToPrivacy || saving}
-                className="flex-1 bg-gray-600 hover:bg-gray-500 text-white px-8 py-4 rounded-full font-bold transition-all duration-200 transform hover:scale-105 flex items-center gap-2 justify-center disabled:opacity-50"
-              >
-                Skip for Now
-              </button>
+            <div className="flex">
               <button
                 type="submit"
                 disabled={!agreeToTerms || !agreeToPrivacy || saving}
-                className="flex-1 bg-green-500 hover:bg-green-600 text-gray-900 px-8 py-4 rounded-full font-bold transition-all duration-200 transform hover:scale-105 flex items-center gap-2 justify-center disabled:opacity-50"
+                className="w-full bg-green-500 hover:bg-green-600 text-gray-900 px-8 py-4 rounded-full font-bold transition-all duration-200 transform hover:scale-105 flex items-center gap-2 justify-center disabled:opacity-50"
               >
                 {saving ? "Completing..." : <>Complete Onboarding <ArrowRight className="w-5 h-5" /></>}
               </button>

@@ -19,7 +19,9 @@ const CONTENT_DIR = path.join(process.cwd(), "content/blog");
 export const dynamic = "error"; // ensure static generation (optional)
 
 export default function BlogIndexPage() {
-  const files = fs.readdirSync(CONTENT_DIR).filter((f) => /\.mdx?$/.test(f));
+  const files = fs.existsSync(CONTENT_DIR)
+    ? fs.readdirSync(CONTENT_DIR).filter((f) => /\.mdx?$/.test(f))
+    : [];
 
   const posts: PostMeta[] = files
     .map((filename) => {
@@ -33,7 +35,7 @@ export default function BlogIndexPage() {
         date: data.date ?? "",
         category: data.category ?? "Build Log",
         cover: data.cover || "/og-image.jpg",
-      };
+      } as PostMeta;
     })
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
@@ -99,7 +101,7 @@ export default function BlogIndexPage() {
                     <p className="text-gray-300 line-clamp-3">{post.excerpt}</p>
                   )}
                   <span className="mt-4 inline-block text-sm text-green-400 group-hover:underline">
-                    Read more →
+                    Read more
                   </span>
                 </div>
               </Link>
@@ -110,3 +112,4 @@ export default function BlogIndexPage() {
     </div>
   );
 }
+

@@ -1,11 +1,12 @@
 import { ImageResponse } from "next/og";
+
 export const runtime = "edge";
 
 export async function GET(req: Request) {
   const { searchParams, origin } = new URL(req.url);
 
   const title = searchParams.get("title") || "Quillaborn";
-  const subtitle = searchParams.get("subtitle") || "Quillaborn • Blog";
+  const subtitle = searchParams.get("subtitle") || "Quillaborn - Blog";
   const bg = searchParams.get("bg") || "/og-image.jpg";
   const bgUrl = bg.startsWith("http") ? bg : `${origin}${bg}`;
 
@@ -21,8 +22,8 @@ export async function GET(req: Request) {
           position: "relative",
           color: "#F9F9F7",
           fontFamily: "Inter, Arial, sans-serif",
-          display: "flex",            // 👈 required
-          flexDirection: "column",    // 👈 required if multiple children
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         {/* Background */}
@@ -82,3 +83,4 @@ export async function GET(req: Request) {
     { width: 1200, height: 630 }
   );
 }
+

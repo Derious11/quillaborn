@@ -23,7 +23,7 @@ export default async function UsernamePageRoute() {
     // Fetch profile info for display name, username
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("id, display_name, username, onboarding_complete")
+      .select("id, display_name, username, onboarding_complete, early_access")
       .eq("id", user.id)
       .maybeSingle<Profile>();
 
@@ -34,14 +34,39 @@ export default async function UsernamePageRoute() {
       // If there's an error fetching profile, still show the page
     }
 
+    // Waitlist-based gating for onboarding
+    const email = (user.email || '').toLowerCase().trim();
+    if (email) {
+      const { data: wl } = await supabase
+        .from('waitlist')
+        .select('status')
+        .eq('email', email)
+        .maybeSingle<{ status: string }>();
+      if (wl?.status === 'pending') redirect('/no-access?state=pending');
+      if (!wl || !wl.status || wl.status !== 'approved') redirect('/no-access?state=unknown');
+    } else {
+      redirect('/no-access?state=unknown');
+    }
+
     if (profile?.onboarding_complete) {
       console.log('UsernamePageRoute: Onboarding complete, redirecting to dashboard');
       redirect('/dashboard');
     }
 
+    // Prefill display name from waitlist if profile is empty
+    let prefillName = profile?.display_name || user.user_metadata?.name || "";
+    if (!prefillName && user.email) {
+      const { data: wl } = await supabase
+        .from('waitlist')
+        .select('name')
+        .eq('email', user.email.toLowerCase())
+        .maybeSingle<{ name: string }>();
+      if (wl?.name) prefillName = wl.name;
+    }
+
     const userData = {
       id: user.id,
-      displayName: profile?.display_name || user.user_metadata?.name || "",
+      displayName: prefillName,
       username: profile?.username || "",
       email: user.email || "",
     };

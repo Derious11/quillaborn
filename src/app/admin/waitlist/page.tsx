@@ -1,6 +1,7 @@
 // app/admin/waitlist/page.tsx
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import WaitlistFilters from "@/components/admin/WaitlistFilters";
 
 type Search = { q?: string; page?: string; status?: string; msg?: string; err?: string };
 type Props = { searchParams?: Search };
@@ -16,7 +17,7 @@ export default async function AdminWaitlistPage({ searchParams }: Props) {
 
   // ---- Inputs ----
   const q = (searchParams?.q ?? "").slice(0, 120);
-  const status = (searchParams?.status ?? "pending") as "pending" | "joined" | "All";
+  const status = (searchParams?.status ?? "pending") as "pending" | "approved" | "joined" | "All";
   const page = Math.max(1, parseInt(searchParams?.page ?? "1", 10) || 1);
   const pageSize = 25;
   const from = (page - 1) * pageSize;
@@ -93,26 +94,7 @@ export default async function AdminWaitlistPage({ searchParams }: Props) {
       </div>
 
       {/* Search + filters */}
-      <form className="flex flex-wrap gap-2 mb-6" action="/admin/waitlist" method="GET">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Search email"
-          className="border border-white/10 bg-white/5 focus:bg-white/10 placeholder:text-gray-400 rounded-full px-4 py-2 text-sm outline-none"
-        />
-        <select
-          name="status"
-          defaultValue={status}
-          className="border border-white/10 bg-white/5 rounded-full px-3 py-2 text-sm"
-        >
-          <option value="pending">pending</option>
-          <option value="joined">joined</option>
-          <option value="All">All</option>
-        </select>
-        <button className="px-4 py-2 rounded-full border border-white/10 text-sm hover:bg-white/10">
-          Apply
-        </button>
-      </form>
+      <WaitlistFilters q={q} status={status} base="/admin/waitlist" />
 
       <div className="overflow-x-auto rounded-2xl border border-white/10 bg-gray-900/60 backdrop-blur">
         <table className="min-w-full text-sm">
@@ -168,6 +150,19 @@ export default async function AdminWaitlistPage({ searchParams }: Props) {
                         Send Nudge
                       </button>
                     </form>
+
+                      {r.status !== 'approved' && (
+                        <form action="/admin/waitlist/approve" method="POST">
+                          <input type="hidden" name="id" value={`${r.id}`} />
+                          <button
+                            type="submit"
+                            className="px-3 py-1.5 rounded-full border border-green-600 text-xs text-green-300 hover:bg-green-600/20"
+                            title="Flip to approved and send invite"
+                          >
+                            Approve & Email
+                          </button>
+                        </form>
+                      )}
 
                       <a
                         className="px-3 py-1.5 rounded-full border border-white/10 text-xs hover:bg-white/10"

@@ -14,6 +14,7 @@ function isValidEmail(email: string): boolean {
 }
 
 export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -25,6 +26,7 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
 
     // Normalize before validating/sending
     const normalizedEmail = (email || "").trim().toLowerCase();
+    const trimmedName = (name || "").trim();
 
     // Email validation
     if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
@@ -37,7 +39,7 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalizedEmail }),
+        body: JSON.stringify({ email: normalizedEmail, name: trimmedName || undefined }),
       });
 
       if (!res.ok) {
@@ -53,6 +55,7 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
 
       setSubmitted(true);
       setEmail("");
+      setName("");
     } catch (err: any) {
       setError(err?.message || "Something went wrong. Please try again.");
     } finally {
@@ -75,12 +78,20 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
 
         <h3 className="text-2xl font-bold mb-2 text-green-400">Join Early Access</h3>
         <p className="text-gray-300 mb-4 text-sm">
-          Enter your email to join the waitlist. If you later sign up with this
-          same email, you’ll get instant access.
+          Enter your email to join the waitlist. Once approved, you will receive an 
+          exclusive invite by email to become one of The First Quills shaping Quillaborn.
         </p>
 
         {!submitted ? (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <input
+              type="text"
+              placeholder="Your name (optional)"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="px-4 py-3 rounded-lg bg-white/90 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+              autoComplete="name"
+            />
             <input
               type="email"
               required
@@ -115,18 +126,19 @@ export default function WaitlistModal({ show, onClose }: WaitlistModalProps) {
           </form>
         ) : (
           <div className="bg-green-500/20 border border-green-500/30 px-6 py-4 rounded-xl space-y-2">
-            <p className="text-green-300 font-bold text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              You’re on the list!
-            </p>
-            <p className="text-sm text-green-200">
-              Use this <strong>same email</strong> to sign up for instant access.
-            </p>
-            <a
-              href="/signup"
-              className="inline-flex items-center gap-2 mt-2 bg-green-500 hover:bg-green-600 text-gray-900 font-bold py-2 px-4 rounded-lg"
-            >
-              Go to Signup
+  <p className="text-green-300 font-bold text-lg flex items-center gap-2">
+    <Sparkles className="w-5 h-5" />
+    You’re on the list!
+  </p>
+  <p className="text-sm text-green-200">
+    Once approved, you’ll receive an <strong>exclusive invite by email</strong> to join{" "}
+    <span className="text-green-400 font-semibold">The First Quills</span> and help shape Quillaborn.
+  </p>
+  <a
+    href="/"
+    className="inline-flex items-center gap-2 mt-2 bg-green-500 hover:bg-green-600 text-gray-900 font-bold py-2 px-4 rounded-lg"
+  >
+              Back to Home
               <ArrowRight className="w-4 h-4" />
             </a>
           </div>

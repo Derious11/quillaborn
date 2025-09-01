@@ -21,10 +21,25 @@ export default async function BioPageRoute() {
       username, 
       bio, 
       onboarding_complete,
+      early_access,
       pronouns:pronoun_id(display_text)
     `)
     .eq("id", user.id)
     .single<Profile>();
+
+  // Waitlist-based gating for onboarding
+  const email = (user.email || '').toLowerCase().trim();
+  if (email) {
+    const { data: wl } = await supabase
+      .from('waitlist')
+      .select('status')
+      .eq('email', email)
+      .maybeSingle<{ status: string }>();
+    if (wl?.status === 'pending') redirect('/no-access?state=pending');
+    if (!wl || !wl.status || wl.status !== 'approved') redirect('/no-access?state=unknown');
+  } else {
+    redirect('/no-access?state=unknown');
+  }
 
   if (profile?.onboarding_complete) {
     redirect('/dashboard');

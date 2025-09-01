@@ -3,14 +3,10 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
-const PROTECTED = [/^\/dashboard(?:\/|$)/]
-
+// Keep middleware light: only ensure session and basic auth for protected paths.
 export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl
-  if (!PROTECTED.some(rx => rx.test(pathname))) return NextResponse.next()
-
   const res = NextResponse.next()
-  
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -20,28 +16,12 @@ export async function middleware(req: NextRequest) {
           return req.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          req.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          res.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+          req.cookies.set({ name, value, ...options })
+          res.cookies.set({ name, value, ...options })
         },
         remove(name: string, options: CookieOptions) {
-          req.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          res.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+          req.cookies.set({ name, value: '', ...options })
+          res.cookies.set({ name, value: '', ...options })
         },
       },
     }
@@ -50,21 +30,25 @@ export async function middleware(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.redirect(new URL('/login', req.url))
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id,onboarding_complete,early_access')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.onboarding_complete) {
-    return NextResponse.redirect(new URL('/onboarding', req.url))
+  // Waitlist gating per spec
+  const email = (user.email || '').toLowerCase().trim()
+  if (!email) {
+    return NextResponse.redirect(new URL('/no-access?state=unknown', req.url))
   }
 
-  if (!profile.early_access && pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/access-denied', req.url))
-  }
+  const { data: wl } = await supabase
+    .from('waitlist')
+    .select('status')
+    .eq('email', email)
+    .maybeSingle<{ status: string }>()
 
-  return res
+  if (wl?.status === 'approved') {
+    return res
+  }
+  if (wl?.status === 'pending') {
+    return NextResponse.redirect(new URL('/no-access?state=pending', req.url))
+  }
+  return NextResponse.redirect(new URL('/no-access?state=unknown', req.url))
 }
 
 export const config = {
