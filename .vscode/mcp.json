@@ -1,0 +1,28 @@
+{
+  "servers": {
+    "fs": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${workspaceFolder}"]
+    },
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--read-only",
+        "--project-ref=ufanddrywvmemldxuffr"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${input:supabase-token}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "id": "supabase-token",
+      "type": "promptString",
+      "description": "Supabase access token (PAT)",
+      "password": true
+    }
+  ]
+}
