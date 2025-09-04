@@ -31,10 +31,23 @@ export default async function ProfileTimelineView({ username }: { username: stri
 
   const hasPosts = (postsCount ?? 0) > 0;
 
+  // Load badges for this profile (shown on both dashboard and public views)
+  const { data: badgeRows } = await supabase
+    .from('user_badges')
+    .select('assigned_at, badges ( id, name, description, icon_url )')
+    .eq('user_id', profile.id);
+
+  const badges = (badgeRows || [])
+    .map((row: any) => ({
+      badges: Array.isArray(row.badges) ? row.badges[0] : row.badges,
+      assigned_at: row.assigned_at ?? row.created_at ?? null,
+    }))
+    .filter((b: any) => b.badges);
+
   return (
     <div className="space-y-8">
       {/* Profile header/card */}
-      <PublicProfile profile={profile} />
+      <PublicProfile profile={profile} badges={badges} />
 
       {/* Timeline */}
       <section className="space-y-4">

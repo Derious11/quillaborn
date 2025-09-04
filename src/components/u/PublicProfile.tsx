@@ -2,6 +2,7 @@ import { Avatar } from "@/components/ui/avatar";
 import FollowCounts from "@/components/features/social/follow/FollowCounts";
 import FollowButton from "@/components/features/social/follow/FollowButton";
 import MessageButton from "@/components/features/social/messages/MessageButton";
+import BadgeChips, { type BadgeRow } from "@/components/u/BadgeChips";
 
 type PublicViewProfile = {
   id: string;
@@ -15,21 +16,19 @@ type PublicViewProfile = {
   interests?: string[] | null;
 };
 
-export default function PublicProfile({ profile }: { profile: PublicViewProfile }) {
+export default function PublicProfile({ profile, badges = [] }: { profile: PublicViewProfile, badges?: BadgeRow[] }) {
   const roles = (profile.roles || []).filter(Boolean);
   const interests = (profile.interests || []).filter(Boolean);
   const name = profile.display_name ?? profile.username ?? "Profile";
 
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Header: avatar + identity */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-        <div className="sm:self-start shrink-0">
-          <Avatar
-            profile={profile as any}
-            alt={`${name} avatar`}
-            size={16}
-          />
+      <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-6">
+        <div className="sm:self-start shrink-0 flex flex-col items-center gap-2">
+          <Avatar profile={profile as any} alt={`${name} avatar`} size={16} />
+          <BadgeChips badges={badges} />
         </div>
 
         <div className="min-w-0 flex-1">
@@ -95,6 +94,7 @@ export default function PublicProfile({ profile }: { profile: PublicViewProfile 
           </div>
         </div>
       )}
+
     </div>
   );
 }

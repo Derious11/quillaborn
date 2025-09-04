@@ -179,11 +179,43 @@ export default function ProfilePage({
     <div className="space-y-8">
       {/* Profile Header */}
       <div className="bg-gray-800 rounded-lg p-6">
-        <div className="flex items-center gap-6">
-          {/* Left: Avatar */}
-          <QBAvatar profile={profile} size={32} alt="Profile avatar" />
+        <div className="flex items-start gap-6">
+          {/* Left: Avatar with badges underneath */}
+          <div className="flex flex-col items-center gap-3">
+            <QBAvatar profile={profile} size={32} alt="Profile avatar" />
+            {userBadges && userBadges.length > 0 && (
+              <div className="flex flex-wrap justify-center gap-2">
+                {userBadges.map((ub) => (
+                  <button
+                    key={ub.badges.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveBadge({ ...(ub.badges as any), assigned_at: ub.assigned_at ?? null });
+                      setIsBadgeModalOpen(true);
+                    }}
+                    className="flex items-center gap-2 bg-gray-700/60 rounded-full px-3 py-1 border border-gray-600 hover:border-green-500 hover:bg-gray-700 transition-colors"
+                    title={(ub.badges.description || '').replace(
+                      'Awarded to the first 100 members of Quillaborn who complete their bio.',
+                      'Awarded to the first 100 members of Quillaborn.'
+                    )}
+                  >
+                    {ub.badges.icon_url && (
+                      <img
+                        src={ub.badges.icon_url}
+                        alt={ub.badges.name}
+                        className="w-6 h-6 rounded-full border border-gray-500"
+                      />
+                    )}
+                    <span className="text-xs text-gray-100 font-medium">
+                      {ub.badges.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-          {/* Middle: Name, username, pronouns */}
+          {/* Right: Name, username, pronouns */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-2xl font-bold text-white truncate">
@@ -220,38 +252,6 @@ export default function ProfilePage({
               </span>
             </div>
           </div>
-
-          {/* Right: Badges (bigger) */}
-          {userBadges && userBadges.length > 0 && (
-            <div className="flex flex-wrap justify-end gap-3">
-              {userBadges.map((ub) => (
-                <button
-                  key={ub.badges.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveBadge({ ...(ub.badges as BadgeCore), assigned_at: ub.assigned_at ?? null });
-                    setIsBadgeModalOpen(true);
-                  }}
-                  className="flex items-center gap-2 bg-gray-700/60 rounded-full px-4 py-2 border border-gray-600 hover:border-green-500 hover:bg-gray-700 transition-colors"
-                  title={(ub.badges.description || '').replace(
-                    'Awarded to the first 100 members of Quillaborn who complete their bio.',
-                    'Awarded to the first 100 members of Quillaborn.'
-                  )}
-                >
-                  {ub.badges.icon_url && (
-                    <img
-                      src={ub.badges.icon_url}
-                      alt={ub.badges.name}
-                      className="w-8 h-8 rounded-full border border-gray-500"
-                    />
-                  )}
-                  <span className="text-sm sm:text-base text-gray-100 font-medium">
-                    {ub.badges.name}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 

@@ -14,6 +14,10 @@ const INTEREST_NAMES_COLUMN = 'interests';
 const PAGE_SIZE = 10;
 
 type FollowCounts = { follower_count: number; following_count: number };
+type BadgeRow = {
+  badges: { id: string; name: string; description: string; icon_url: string };
+  assigned_at?: string | null;
+};
 
 export default function ExploreContent({ inDashboard = false }: { inDashboard?: boolean }) {
   const { supabase } = useSupabase();
@@ -24,6 +28,7 @@ export default function ExploreContent({ inDashboard = false }: { inDashboard?: 
 
   const [profiles, setProfiles] = useState<any[]>([]);
   const [counts, setCounts] = useState<Record<string, FollowCounts>>({});
+  const [badgesByUser, setBadgesByUser] = useState<Record<string, BadgeRow[]>>({});
 
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -133,8 +138,30 @@ export default function ExploreContent({ inDashboard = false }: { inDashboard?: 
         console.warn('Counts fetch warning:', countsErr.message);
         if (!append) setCounts({});
       }
+
+      // Fetch badges for these profiles
+      const { data: badgeRows, error: badgeErr } = await supabase
+        .from('user_badges')
+        .select('user_id, assigned_at, badges ( id, name, description, icon_url )')
+        .in('user_id', ids);
+
+      if (!badgeErr && badgeRows) {
+        const pageBadges: Record<string, BadgeRow[]> = {};
+        for (const row of badgeRows as any[]) {
+          const key = row.user_id as string;
+          const badge = Array.isArray(row.badges) ? row.badges[0] : row.badges;
+          if (!badge) continue;
+          const entry: BadgeRow = { badges: badge as BadgeRow['badges'], assigned_at: row.assigned_at ?? row.created_at ?? null };
+          if (!pageBadges[key]) pageBadges[key] = [];
+          pageBadges[key].push(entry);
+        }
+        setBadgesByUser(prev => (append ? { ...prev, ...pageBadges } : pageBadges));
+      } else if (badgeErr && !append) {
+        setBadgesByUser({});
+      }
     } else if (!append) {
       setCounts({});
+      setBadgesByUser({});
     }
 
     if (!append) setLoading(false);
@@ -234,6 +261,7 @@ export default function ExploreContent({ inDashboard = false }: { inDashboard?: 
             profile={p}
             inDashboard={inDashboard}
             followCounts={counts[p.id]} // NEW: show counts on card
+            badges={badgesByUser[p.id]}
           />
         ))}
       </div>
