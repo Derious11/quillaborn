@@ -6,6 +6,22 @@ import Header from "@/components//layout/Header";
 import Footer from "@/components//layout/Footer";
 import WaitlistModal from "@/components/features/public/WaitlistModal";
 import Image from "next/image";
+import Head from "next/head";
+import Link from "next/link";
+
+<Head>
+  <title>About Quillaborn | Creative Collaboration Platform</title>
+  <meta name="description" content="Discover Quillaborn's mission to connect writers, artists, and storytellers. Learn how our platform fosters collaboration and creative freedom." />
+  <script type="application/ld+json" dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "About Quillaborn",
+      "url": "https://quillaborn.com/about"
+    })
+  }} />
+</Head>
+
 
 export default function AboutPage() {
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
@@ -33,7 +49,10 @@ export default function AboutPage() {
               Quillaborn is a creative sanctuary built for writers, artists, and storytellers of all skill levels who believe in the magic of collaboration.
               We’re more than a platform—we’re a movement. One that celebrates unfinished ideas, fan-made worlds, scribbled notes, and ambitious dreams.
               Whether you’re just starting out or a seasoned creator, Quillaborn is your space to connect, co-create, and bring narratives to life with others who share your passion.
-            </p>
+             </p>
+             <p className="text-gray-400">
+              Curious how it works? Visit our <Link href="/how-it-works" className="text-green-400 underline">How It Works page</Link>.
+             </p>
           </div>
 
           <section className="space-y-12 text-gray-300">

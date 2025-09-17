@@ -5,6 +5,13 @@ import { Sparkles, Feather, ShieldCheck, Castle, Heart, Handshake } from "lucide
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import WaitlistModal from "@/components/features/public/WaitlistModal";
+import Head from "next/head";
+import Link from "next/link";
+
+<Head>
+  <title>Quillaborn Pricing | Free & Pro Plans for Creators</title>
+  <meta name="description" content="Start free with Quillaborn. Upgrade to Pro or Studio tiers for enhanced collaboration tools, private spaces, and monetization options." />
+</Head>
 
 export default function PricingPage() {
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
@@ -100,6 +107,10 @@ export default function PricingPage() {
               </h2>
               <p>
                 You create. You own it. We’re just the forge. No ads. No weird tracking. No reselling your content. Ever.
+              </p>
+              <br /><br />
+              <p className="text-lg text-gray-300">
+                Not sure yet? Learn more <Link href="/about" className="text-green-400 underline">about Quillaborn</Link>.
               </p>
             </div>
           </div>

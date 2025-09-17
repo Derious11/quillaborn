@@ -5,6 +5,13 @@ import { Sparkles, User, Search, Brain, Layers, Star, Users, MessageCircle } fro
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import WaitlistModal from "@/components/features/public/WaitlistModal";
+import Head from "next/head";
+import Link from "next/link";
+
+<Head>
+  <title>How Quillaborn Works | Collaborate on Stories & Art</title>
+  <meta name="description" content="Learn how to create profiles, discover collaborators, start projects, and publish with Quillaborn. Collaboration made simple for writers and artists." />
+</Head>
 
 export default function HowItWorksPage() {
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
@@ -91,6 +98,10 @@ export default function HowItWorksPage() {
               <p>
                 Join the community, test ideas, or lurk until you are ready to jump in.
                 Quillaborn is built to support you wherever you are on your creative path.
+              </p>
+              <br /><br />
+              <p className="text-lg text-gray-300">
+                Want to know what it costs? Check out our <Link href="/pricing" className="text-green-400 underline">Pricing page</Link>.
               </p>
             </div>
           </div>

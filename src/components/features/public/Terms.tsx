@@ -5,6 +5,13 @@ import { FileText, LockKeyhole, ShieldCheck, UserCheck, Receipt, FlaskConical, B
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import WaitlistModal from "@/components/features/public/WaitlistModal";
+import Head from "next/head";
+import Link from "next/link";
+
+<Head>
+  <title>Quillaborn Terms of Service | Creative Collaboration Rules</title>
+  <meta name="description" content="Review the Terms of Service for Quillaborn, covering content rights, acceptable use, subscriptions, and community guidelines." />
+</Head>
 
 export default function TermsOfService() {
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
@@ -29,6 +36,9 @@ export default function TermsOfService() {
             <p className="text-gray-400">
               Welcome to Quillaborn! These Terms of Service (“Terms”) govern your use of our platform at [quillaborn.com] and all related services.
               By creating an account or using the platform, you agree to these Terms.
+            </p>
+            <p className="text-gray-400">
+              Please also review our <Link href="/privacy" className="text-green-400 underline">Privacy Policy</Link> for information about how we handle your data.
             </p>
           </div>
 

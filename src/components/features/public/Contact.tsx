@@ -7,6 +7,13 @@ import { useState } from "react";
 import Header from "@/components//layout/Header";
 import Footer from "@/components/layout/Footer";
 import WaitlistModal from "@/components/features/public/WaitlistModal";
+import Head from "next/head";
+import Link from "next/link";
+
+<Head>
+  <title>Contact Quillaborn | Support, Press & Partnerships</title>
+  <meta name="description" content="Get support, report bugs, or connect with Quillaborn's team. Find our contact emails for support, partnerships, and licensing." />
+</Head>
 
 // Email validation helper
 function isValidEmail(email: string): boolean {
@@ -90,7 +97,10 @@ export default function ContactSupportPage() {
             </h1>
             <p className="text-lg text-gray-300">
               Need help? Have feedback? Just want to say hi? We’re creators too—and we’re here to support you every step of the way.
-            </p>
+             </p>
+             <p className="text-lg text-gray-300">
+              Check out our <Link href="/privacy" className="text-green-400 underline">Privacy Policy</Link> or <Link href="/terms" className="text-green-400 underline">Terms of Service</Link> for more details.
+             </p>
           </div>
 
           <section className="space-y-8 text-gray-300">

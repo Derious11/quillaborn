@@ -15,6 +15,13 @@ import {
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import WaitlistModal from "@/components/features/public/WaitlistModal";
+import Head from "next/head";
+import Link from "next/link";
+
+<Head>
+  <title>Quillaborn Privacy Policy | Your Data & Rights</title>
+  <meta name="description" content="Read Quillaborn’s privacy policy. Learn what data we collect, how we protect it, and your rights as a creator on our platform." />
+</Head>
 
 export default function PrivacyPolicy() {
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
@@ -38,6 +45,9 @@ export default function PrivacyPolicy() {
             <p className="text-lg text-gray-300">Effective Date: [07/27/2025]</p>
             <p className="text-gray-400">
               At Quillaborn, your privacy is sacred—just like your creative rights. This policy explains what data we collect, how we use it, and how we keep it safe.
+            </p>
+            <p className="text-gray-400">
+              For related legal details, see our <Link href="/terms" className="text-green-400 underline">Terms of Service</Link>.
             </p>
           </div>
 
