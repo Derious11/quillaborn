@@ -24,7 +24,12 @@ export const metadata: Metadata = {
   description: "Quillaborn helps creators collaborate on original and fan projects. Join a vibrant community today.",
   metadataBase: new URL("https://quillaborn.com"),
   icons: {
-    icon: '/favicon.ico',
+   icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
   },
   openGraph: {
     title: "Quillaborn",
