@@ -1,20 +1,9 @@
+# *
 User-agent: *
 Allow: /
 
-# Sitemap location
-Sitemap: https://quillaborn.com/sitemap.xml
+# Host
+Host: https://www.quillaborn.com
 
-# Crawl-delay for respectful crawling
-Crawl-delay: 1
-
-# Disallow admin or private areas (if any)
-# Disallow: /admin/
-# Disallow: /private/
-
-# Allow all important pages
-Allow: /about
-Allow: /contact
-Allow: /pricing
-Allow: /terms
-Allow: /privacy
-Allow: /how 
+# Sitemaps
+Sitemap: https://www.quillaborn.com/sitemap.xml
