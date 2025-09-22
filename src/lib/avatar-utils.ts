@@ -20,7 +20,7 @@ export function getAvatarUrl(profile: Profile): string {
   }
   
   // Default fallback
-  return '/avatar-fallback.png';
+  return '/qb-avatar-00-quill.svg';
 }
 
 /**
