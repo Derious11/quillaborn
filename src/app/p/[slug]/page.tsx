@@ -16,15 +16,22 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
 
   if (!project) notFound();
 
-  // Recent updates
+  // ✅ Recent updates (latest 3, include author profile with FK join)
   const { data: updates } = await supabase
     .from("project_updates")
-    .select("id, content, created_at, author_id")
+    .select(
+      `
+      id, title, body_md, created_at,
+      profiles:profiles!project_updates_author_id_fkey (
+        id, username, display_name, avatar_key
+      )
+    `
+    )
     .eq("project_id", project.id)
     .order("created_at", { ascending: false })
     .limit(3);
 
-  // Recent files
+  // ✅ Recent files
   const { data: files } = await supabase
     .from("project_files")
     .select("id, filename, uploader_id, created_at")
@@ -32,11 +39,42 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
     .order("created_at", { ascending: false })
     .limit(3);
 
-  // Members
+  // ✅ Members (two-step query, matches ProjectHeader)
   const { data: membersRaw } = await supabase
     .from("project_members")
     .select("user_id, role")
     .eq("project_id", project.id);
+
+  let members:
+    | {
+        id: string;
+        role: string;
+        display_name: string;
+        username: string;
+        avatar_key: string | null;
+      }[]
+    = [];
+
+  if (membersRaw && membersRaw.length > 0) {
+    const memberIds = membersRaw.map((m) => m.user_id);
+
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_key")
+      .in("id", memberIds);
+
+    members =
+      membersRaw.map((m) => {
+        const profile = profiles?.find((p) => p.id === m.user_id);
+        return {
+          id: m.user_id,
+          role: m.role,
+          display_name: profile?.display_name || profile?.username || "User",
+          username: profile?.username || "",
+          avatar_key: profile?.avatar_key || null,
+        };
+      }) ?? [];
+  }
 
   return (
     <div className="space-y-6">
@@ -56,15 +94,36 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
           Recent Updates
         </h2>
         {updates && updates.length > 0 ? (
-          <ul className="space-y-2">
-            {updates.map((u) => (
-              <li key={u.id} className="text-gray-300 text-sm">
-                <span className="text-gray-400">
-                  {new Date(u.created_at).toLocaleDateString()}
-                </span>{" "}
-                — {u.content}
-              </li>
-            ))}
+          <ul className="space-y-3">
+            {updates.map((u) => {
+              const p = Array.isArray(u.profiles)
+                ? u.profiles[0]
+                : u.profiles;
+              const avatar = p?.avatar_key
+                ? `/avatars/presets/${p.avatar_key}`
+                : "/avatars/presets/qb-avatar-00-quill.svg";
+              const name = p?.display_name || p?.username || "User";
+
+              return (
+                <li key={u.id} className="text-gray-300 text-sm">
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={avatar}
+                      alt={name}
+                      className="w-6 h-6 rounded-full border border-green-400"
+                    />
+                    <span className="font-semibold">{name}</span>
+                    <span className="text-gray-400 text-xs">
+                      {new Date(u.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-white font-medium">{u.title}</p>
+                  <p className="text-gray-400 text-sm line-clamp-2">
+                    {u.body_md}
+                  </p>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="text-gray-400">No updates yet.</p>
@@ -95,14 +154,24 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
       {/* Members Summary */}
       <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-lg p-6">
         <h2 className="text-lg font-semibold text-green-400 mb-3">Members</h2>
-        {membersRaw && membersRaw.length > 0 ? (
+        {members.length > 0 ? (
           <ul className="flex flex-wrap gap-3">
-            {membersRaw.map((m) => (
+            {members.map((m) => (
               <li
-                key={m.user_id}
-                className="text-gray-300 text-sm px-3 py-1 bg-gray-800 rounded-full"
+                key={m.id}
+                className="flex items-center gap-2 text-gray-300 text-sm px-3 py-2 bg-gray-800 rounded-full"
               >
-                {m.role}
+                <img
+                  src={
+                    m.avatar_key
+                      ? `/avatars/presets/${m.avatar_key}`
+                      : "/avatars/presets/qb-avatar-00-quill.svg"
+                  }
+                  alt={m.display_name}
+                  className="w-6 h-6 rounded-full border border-green-400"
+                />
+                <span>{m.display_name}</span>
+                <span className="text-xs text-gray-400">({m.role})</span>
               </li>
             ))}
           </ul>

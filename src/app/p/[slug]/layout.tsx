@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import ProjectHeader from "@/components/projects/ProjectHeader";
-import NavTabs from "@/components/projects/NavTabs"; // 👈 new client component
+import NavTabs from "@/components/projects/NavTabs";
 import { notFound } from "next/navigation";
 
 export default async function ProjectLayout({
@@ -45,9 +45,9 @@ export default async function ProjectLayout({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-500/10 via-gray-900 to-gray-900 text-white">
-      <div className="max-w-5xl mx-auto p-6 space-y-8">
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 space-y-8">
         <ProjectHeader project={project} members={members} />
-        <NavTabs slug={params.slug} /> {/* 👈 client nav */}
+        <NavTabs slug={params.slug} />
         <div>{children}</div>
       </div>
     </div>

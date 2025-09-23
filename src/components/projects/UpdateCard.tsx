@@ -5,6 +5,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabaseBrowser";
 import ReactMarkdown from "react-markdown";
 import { getAvatarUrl } from "@/lib/avatar-utils";
 import type { ProjectUpdate } from "./UpdatesFeed";
+import { Modal } from "@/components/ui/modal";
 
 export default function UpdateCard({
   update,
@@ -21,6 +22,7 @@ export default function UpdateCard({
   const [title, setTitle] = useState(update.title);
   const [body, setBody] = useState(update.body_md);
   const [loading, setLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault();
@@ -39,21 +41,19 @@ export default function UpdateCard({
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this update?")) return;
     setLoading(true);
-
     const { error } = await supabase
       .from("project_updates")
       .delete()
       .eq("id", update.id);
 
     setLoading(false);
+    setShowDeleteModal(false);
     if (!error) {
       onRefresh();
     }
   }
 
-  // Avatar + display name
   const avatarSrc = update.profiles
     ? getAvatarUrl(update.profiles)
     : "/avatars/presets/qb-avatar-00-quill.svg";
@@ -63,7 +63,7 @@ export default function UpdateCard({
 
   return (
     <div className="rounded-xl border bg-gradient-to-b from-green-700/10 to-green-800/20 shadow-md p-5 space-y-3">
-      {/* Header: Avatar + User */}
+      {/* Header */}
       <div className="flex items-center gap-3">
         <img
           src={avatarSrc}
@@ -149,14 +149,42 @@ export default function UpdateCard({
             Edit
           </button>
           <button
-            onClick={handleDelete}
+            onClick={() => setShowDeleteModal(true)}
             disabled={loading}
             className="text-sm text-red-400 hover:text-red-500 transition"
           >
-            {loading ? "Deleting…" : "Delete"}
+            Delete
           </button>
         </div>
       )}
+
+      {/* Modern Delete Modal */}
+      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
+        <div className="p-6 flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-white">
+            Delete this update?
+          </h2>
+          <p className="text-gray-300 text-sm">
+            This action cannot be undone. Are you sure you want to delete{" "}
+            <span className="font-semibold">"{update.title}"</span>?
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              className="px-4 py-2 rounded-lg bg-gray-700 text-gray-200 hover:bg-gray-600 transition"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={loading}
+              className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+            >
+              {loading ? "Deleting…" : "Delete"}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

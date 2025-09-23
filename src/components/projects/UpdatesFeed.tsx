@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabaseBrowser";
-import { useSession } from "@supabase/auth-helpers-react";
 import { useRouter } from "next/navigation";
 import PostUpdateForm from "./PostUpdateForm";
 import UpdateCard from "./UpdateCard";
@@ -25,41 +24,52 @@ export interface ProjectUpdate {
 
 export default function UpdatesFeed({ projectId }: UpdatesFeedProps) {
   const supabase = createSupabaseBrowserClient();
-  const session = useSession();
-  const user = session?.user; // ✅ more reliable than useUser()
   const router = useRouter();
 
   const [updates, setUpdates] = useState<ProjectUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
+  // ✅ Load logged-in user
   useEffect(() => {
-    async function fetchUpdates() {
-      const { data, error } = await supabase
-        .from("project_updates")
-        .select(
-          `
-          id, title, body_md, attachments, author_id, created_at, updated_at,
-          profiles:profiles!project_updates_author_id_fkey(
-            id, username, avatar_kind, avatar_key, avatar_url, display_name
-          )
-        `
-        )
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: false });
-
-      if (!error && data) {
-        const mapped = (data as any[]).map((u) => ({
-          ...u,
-          profiles: u.profiles ?? null,
-        })) as ProjectUpdate[];
-        setUpdates(mapped);
-      }
-      setLoading(false);
+    async function loadUser() {
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user);
     }
+    loadUser();
+  }, [supabase]);
 
-    fetchUpdates();
+  // ✅ Centralized fetchUpdates
+  const fetchUpdates = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("project_updates")
+      .select(
+        `
+        id, title, body_md, attachments, author_id, created_at, updated_at,
+        profiles:profiles!project_updates_author_id_fkey(
+          id, username, avatar_kind, avatar_key, avatar_url, display_name
+        )
+      `
+      )
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      const mapped = (data as any[]).map((u) => ({
+        ...u,
+        profiles: u.profiles ?? null,
+      })) as ProjectUpdate[];
+      setUpdates(mapped);
+    }
+    setLoading(false);
   }, [projectId, supabase]);
+
+  // ✅ Run on mount
+  useEffect(() => {
+    fetchUpdates();
+  }, [fetchUpdates]);
 
   return (
     <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 lg:px-8 space-y-6">
@@ -71,7 +81,6 @@ export default function UpdatesFeed({ projectId }: UpdatesFeedProps) {
           onClick={() => {
             if (!user) {
               alert("⚠️ Please sign in to post updates.");
-              // Optionally: router.push("/login")
               return;
             }
             setShowForm((prev) => !prev);
@@ -84,12 +93,12 @@ export default function UpdatesFeed({ projectId }: UpdatesFeedProps) {
 
       {/* Collapsible Form */}
       {showForm && user && (
-        <div className="bg-gradient-to-b from-green-700 to-green-800 rounded-xl shadow-lg p-6">
+        <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl p-6">
           <PostUpdateForm
             projectId={projectId}
             onSubmitted={() => {
-              router.refresh();
-              setShowForm(false); // collapse after submit
+              fetchUpdates(); // ✅ reload feed after submit
+              setShowForm(false);
             }}
           />
         </div>
@@ -108,7 +117,7 @@ export default function UpdatesFeed({ projectId }: UpdatesFeedProps) {
               update={update}
               isAuthor={user?.id === update.author_id}
               supabase={supabase}
-              onRefresh={() => router.refresh()}
+              onRefresh={fetchUpdates} // ✅ reload after edit/delete
             />
           ))}
         </div>

@@ -7,7 +7,7 @@ import InviteModal from "@/components/projects/InviteModal";
 interface Member {
   id: string;
   name: string;
-  avatar_key?: string; // preset file name, e.g. "qb-avatar-17-alien.svg"
+  avatar_key?: string;
   role: string;
 }
 
@@ -30,7 +30,7 @@ export default function ProjectHeader({
     if (m.avatar_key && m.avatar_key.trim().length > 0) {
       return `/avatars/presets/${m.avatar_key}`;
     }
-    return "/avatars/presets/qb-avatar-00-quill.svg"; // fallback preset
+    return "/avatars/presets/qb-avatar-00-quill.svg";
   }
 
   return (
@@ -61,7 +61,7 @@ export default function ProjectHeader({
       </div>
 
       {/* Members + invite */}
-      <div className="absolute top-4 right-6 flex items-center space-x-3">
+      <div className="absolute top-4 right-4 flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
         <div className="flex -space-x-2">
           {members.map((m) => (
             <Image
@@ -76,13 +76,12 @@ export default function ProjectHeader({
         </div>
         <button
           onClick={() => setShowInvite(true)}
-          className="ml-2 px-4 py-1.5 bg-green-500 hover:bg-green-600 text-gray-900 font-semibold text-sm rounded-full shadow transition-transform transform hover:scale-105"
+          className="px-4 py-1.5 bg-green-500 hover:bg-green-600 text-gray-900 font-semibold text-sm rounded-full shadow transition-transform transform hover:scale-105"
         >
           + Invite
         </button>
       </div>
 
-      {/* Invite Modal */}
       <InviteModal
         isOpen={showInvite}
         onClose={() => setShowInvite(false)}

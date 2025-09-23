@@ -17,14 +17,14 @@ export default function NavTabs({ slug }: { slug: string }) {
   ];
 
   return (
-    <nav className="flex space-x-6 text-sm font-medium border-b border-gray-700">
+    <nav className="flex overflow-x-auto space-x-4 sm:space-x-6 text-sm font-medium border-b border-gray-700 scrollbar-hide">
       {links.map(({ href, label }) => {
         const isActive = pathname === href;
         return (
           <Link
             key={href}
             href={href}
-            className={`pb-2 border-b-2 transition-colors ${
+            className={`whitespace-nowrap pb-2 border-b-2 transition-colors ${
               isActive
                 ? "border-green-400 text-green-400"
                 : "border-transparent text-gray-300 hover:text-green-400 hover:border-green-400"

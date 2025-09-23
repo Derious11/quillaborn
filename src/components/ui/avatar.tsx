@@ -13,7 +13,7 @@ export function Avatar({ src, profile, alt = "", size = 12 }: AvatarProps) {
   const px = size * 4;
   
   // Determine the avatar source
-  const avatarSrc = src || (profile ? getAvatarUrl(profile) : '/avatar-fallback.png');
+  const avatarSrc = src || (profile ? getAvatarUrl(profile) : '/avatars/presets/qb-avatar-00-quill.svg');
   
   return (
     <Image
