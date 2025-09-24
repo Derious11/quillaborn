@@ -10,6 +10,7 @@ interface InviteModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
+  projectName: string;
   ownerId: string;
 }
 
@@ -30,6 +31,7 @@ export default function InviteModal({
   isOpen,
   onClose,
   projectId,
+  projectName,
   ownerId,
 }: InviteModalProps) {
   const { supabase } = useSupabase();
@@ -67,27 +69,32 @@ export default function InviteModal({
   }, [isOpen, supabase, ownerId]);
 
   async function handleInvite(userId: string) {
-    const { error } = await supabase.from("project_members").insert([
-      {
-        project_id: projectId,
-        user_id: userId,
-        role: "viewer",
-      },
-    ]);
+  try {
+    const res = await fetch("/api/invites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        invitedUserId: userId,
+        projectId,
+        projectName: "My Project", // TODO: pass real project name as prop
+      }),
+    });
 
-    if (error) {
-      console.error("Invite error:", error);
-    } else {
-      // remove invited user from list
-      setUsers((prev) => prev.filter((u) => u.id !== userId));
-    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to send invite");
+
+    // remove invited user from list so they don’t get invited twice
+    setUsers((prev) => prev.filter((u) => u.id !== userId));
+  } catch (err) {
+    console.error("Invite error:", err);
   }
+}
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <div className="p-6 flex flex-col flex-1 text-white">
         <h2 className="text-xl font-bold mb-4 text-green-400">
-          Invite a Follower
+          Invite a Follower to {projectName}
         </h2>
 
         {loading ? (

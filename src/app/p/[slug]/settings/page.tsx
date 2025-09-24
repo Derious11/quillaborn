@@ -3,6 +3,25 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+
+interface Member {
+  profiles: {
+    id: string;
+    display_name: string | null;
+    username: string;
+    avatar_key?: string;
+  } | null;
+  role: string;
+}
+
+function resolveAvatar(avatar_key?: string) {
+  if (avatar_key && avatar_key.trim().length > 0) {
+    return `/avatars/presets/${avatar_key}`;
+  }
+  return "/avatars/presets/qb-avatar-00-quill.svg";
+}
 
 export default function ProjectSettings() {
   const { supabase } = useSupabase();
@@ -17,6 +36,10 @@ export default function ProjectSettings() {
   const [summary, setSummary] = useState("");
   const [status, setStatus] = useState("active");
 
+  const [members, setMembers] = useState<Member[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+
+  // Load project details
   useEffect(() => {
     async function loadProject() {
       setLoading(true);
@@ -37,7 +60,42 @@ export default function ProjectSettings() {
       setSummary(data.summary || "");
       setStatus(data.status || "active");
       setLoading(false);
+
+      // Load members once project is available
+      loadMembers(data.id);
     }
+
+    async function loadMembers(projectId: string) {
+      setMembersLoading(true);
+
+      const { data, error } = await supabase
+        .from("project_members")
+        .select(
+          `
+          role,
+          profiles (
+            id,
+            display_name,
+            username,
+            avatar_key
+          )
+        `
+        )
+        .eq("project_id", projectId);
+
+      if (error) {
+        console.error("Error loading members:", error);
+        setMembers([]);
+      } else {
+        const flattened = (data || []).map((row: any) => ({
+          role: row.role,
+          profiles: row.profiles ? row.profiles : null,
+        }));
+        setMembers(flattened);
+      }
+      setMembersLoading(false);
+    }
+
     loadProject();
   }, [params.slug, supabase]);
 
@@ -62,13 +120,18 @@ export default function ProjectSettings() {
       alert("Failed to save changes");
     } else {
       alert("Changes saved ✅");
-      router.refresh(); // re-fetch server data
+      router.refresh();
     }
   }
 
   async function handleDelete() {
     if (!project) return;
-    if (!confirm("Are you sure you want to delete this project? This cannot be undone.")) return;
+    if (
+      !confirm(
+        "Are you sure you want to delete this project? This cannot be undone."
+      )
+    )
+      return;
 
     const { error } = await supabase
       .from("projects")
@@ -80,7 +143,7 @@ export default function ProjectSettings() {
       alert("Failed to delete project");
     } else {
       alert("Project deleted");
-      router.push("/p"); // redirect back to projects list
+      router.push("/p");
     }
   }
 
@@ -133,6 +196,60 @@ export default function ProjectSettings() {
             {saving ? "Saving..." : "Save Changes"}
           </button>
         </div>
+      </div>
+
+      {/* Members Section */}
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-lg p-6">
+        <h2 className="text-xl font-bold text-green-400 mb-4">
+          Project Members
+        </h2>
+        {membersLoading ? (
+          <p className="text-gray-400">Loading members...</p>
+        ) : members.length === 0 ? (
+          <p className="text-gray-400">No members yet.</p>
+        ) : (
+          <ul className="space-y-3">
+            {members.map(
+              (m) =>
+                m.profiles && (
+                  <li
+                    key={m.profiles.id}
+                    className="flex items-center justify-between bg-gray-800 p-3 rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Image
+                        src={resolveAvatar(m.profiles.avatar_key)}
+                        alt={m.profiles.display_name || m.profiles.username}
+                        width={32}
+                        height={32}
+                        className="rounded-full border border-green-400"
+                      />
+                      <div>
+                        <span className="text-white font-medium">
+                          {m.profiles.display_name || m.profiles.username}
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          @{m.profiles.username}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-gray-300 text-sm capitalize">
+                        {m.role}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-gray-700 text-gray-300 hover:text-red-400 hover:border-red-400 rounded-full"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </li>
+                )
+            )}
+          </ul>
+        )}
       </div>
 
       {/* Danger Zone */}

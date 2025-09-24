@@ -86,6 +86,7 @@ export default function ProjectHeader({
         isOpen={showInvite}
         onClose={() => setShowInvite(false)}
         projectId={project.id}
+        projectName={project.name}
         ownerId={project.owner_id}
       />
     </div>
