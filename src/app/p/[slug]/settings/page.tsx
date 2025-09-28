@@ -14,6 +14,7 @@ interface Member {
     avatar_key?: string;
   } | null;
   role: string;
+  status: string;
 }
 
 function resolveAvatar(avatar_key?: string) {
@@ -39,7 +40,7 @@ export default function ProjectSettings() {
   const [members, setMembers] = useState<Member[]>([]);
   const [membersLoading, setMembersLoading] = useState(true);
 
-  // Load project details
+  // Load project details + members
   useEffect(() => {
     async function loadProject() {
       setLoading(true);
@@ -61,14 +62,14 @@ export default function ProjectSettings() {
       setStatus(data.status || "active");
       setLoading(false);
 
-      // Load members once project is available
       loadMembers(data.id);
     }
 
     async function loadMembers(projectId: string) {
       setMembersLoading(true);
 
-      const { data, error } = await supabase
+      // 1. Active members
+      const { data: memberData, error: memberError } = await supabase
         .from("project_members")
         .select(
           `
@@ -83,16 +84,48 @@ export default function ProjectSettings() {
         )
         .eq("project_id", projectId);
 
-      if (error) {
-        console.error("Error loading members:", error);
-        setMembers([]);
-      } else {
-        const flattened = (data || []).map((row: any) => ({
-          role: row.role,
-          profiles: row.profiles ? row.profiles : null,
-        }));
-        setMembers(flattened);
+      if (memberError) {
+        console.error("Error loading members:", memberError);
       }
+
+      // 2. Pending/declined invites
+      const { data: inviteData, error: inviteError } = await supabase
+        .from("project_invites")
+        .select(
+          `
+          id,
+          status,
+          invitee_id,
+          profiles:invitee_id (
+            id,
+            display_name,
+            username,
+            avatar_key
+          )
+        `
+        )
+        .eq("project_id", projectId);
+
+      if (inviteError) {
+        console.error("Error loading invites:", inviteError);
+      }
+
+      // Normalize both lists
+      const activeMembers =
+        (memberData || []).map((row: any) => ({
+          role: row.role,
+          status: "active",
+          profiles: row.profiles ? row.profiles : null,
+        })) ?? [];
+
+      const invites =
+        (inviteData || []).map((row: any) => ({
+          role: "member",
+          status: row.status,
+          profiles: row.profiles ? row.profiles : null,
+        })) ?? [];
+
+      setMembers([...activeMembers, ...invites]);
       setMembersLoading(false);
     }
 
@@ -234,16 +267,32 @@ export default function ProjectSettings() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-gray-300 text-sm capitalize">
-                        {m.role}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-gray-700 text-gray-300 hover:text-red-400 hover:border-red-400 rounded-full"
-                      >
-                        Remove
-                      </Button>
+                      {m.status === "active" ? (
+                        <span className="text-gray-300 text-sm capitalize">
+                          {m.role}
+                        </span>
+                      ) : (
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            m.status === "invited"
+                              ? "bg-yellow-600 text-yellow-100"
+                              : m.status === "declined"
+                              ? "bg-red-600 text-red-100"
+                              : "bg-gray-600 text-gray-100"
+                          }`}
+                        >
+                          {m.status}
+                        </span>
+                      )}
+                      {m.status === "active" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-gray-700 text-gray-300 hover:text-red-400 hover:border-red-400 rounded-full"
+                        >
+                          Remove
+                        </Button>
+                      )}
                     </div>
                   </li>
                 )

@@ -1,17 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useSupabase } from "@/components/providers/SupabaseProvider";
+import { Button } from "@/components/ui/button";
 
 export default function NotificationsPage() {
+  const { supabase, user } = useSupabase();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return; // wait until session is ready
+
     async function loadNotifications() {
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
+        .eq("user_id", user.id) // explicit filter, RLS would also handle this
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -23,7 +28,7 @@ export default function NotificationsPage() {
     }
 
     loadNotifications();
-  }, []);
+  }, [user, supabase]);
 
   async function acceptInvite(notificationId: string, projectId: string) {
     const res = await fetch("/api/invites/accept", {
@@ -60,34 +65,37 @@ export default function NotificationsPage() {
   }
 
   function renderNotification(n: any) {
+    const data = typeof n.data === "string" ? JSON.parse(n.data) : n.data;
+
     switch (n.kind) {
       case "project_invite":
         return (
           <div>
             <p className="text-white mb-2">
-              📩 <b>{n.data.inviter_name}</b> has invited you to join{" "}
-              <b>{n.data.project_name}</b>
+              📩 <b>{data.inviter_name}</b> has invited you to join{" "}
+              <b>{data.project_name}</b>
             </p>
             <div className="flex gap-2">
-              <button
-                onClick={() => acceptInvite(n.id, n.data.project_id)}
-                className="px-3 py-1 bg-green-600 text-white rounded"
+              <Button
+                onClick={() => acceptInvite(n.id, data.project_id)}
+                variant="default"
+                className="bg-green-600 hover:bg-green-700"
               >
                 Accept
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() =>
                   declineInvite(
                     n.id,
-                    n.data.inviter_id,
-                    n.data.project_id,
-                    n.data.project_name
+                    data.inviter_id,
+                    data.project_id,
+                    data.project_name
                   )
                 }
-                className="px-3 py-1 bg-red-600 text-white rounded"
+                variant="destructive"
               >
                 Decline
-              </button>
+              </Button>
             </div>
           </div>
         );
@@ -95,8 +103,8 @@ export default function NotificationsPage() {
       case "invite_declined":
         return (
           <p className="text-white">
-            ❌ <b>{n.data.declined_by_name}</b> declined your invite to join{" "}
-            <b>{n.data.project_name}</b>
+            ❌ <b>{data.declined_by_name}</b> declined your invite to join{" "}
+            <b>{data.project_name}</b>
           </p>
         );
 
