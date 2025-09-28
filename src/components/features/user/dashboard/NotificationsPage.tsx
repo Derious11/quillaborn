@@ -16,7 +16,7 @@ export default function NotificationsPage() {
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
-        .eq("user_id", user.id) // explicit filter, RLS would also handle this
+        .eq("user_id", user?.id ?? "") // explicit filter, RLS would also handle this
         .order("created_at", { ascending: false });
 
       if (error) {
