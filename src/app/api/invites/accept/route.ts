@@ -26,10 +26,14 @@ export async function POST(req: Request) {
       .select("id, status")
       .eq("project_id", projectId)
       .eq("invitee_id", user.id)
+      .eq("status", "invited")
       .single();
 
     if (inviteError || !invite) {
-      return NextResponse.json({ error: "Invite not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Invite not found or already handled" }, 
+        { status: 404 }
+      );
     }
 
     if (invite.status !== "invited") {
@@ -40,8 +44,7 @@ export async function POST(req: Request) {
     const { error: memberError } = await supabase.from("project_members").insert([
       {
         project_id: projectId,
-        user_id: user.id,
-        role: "member",
+        user_id: user.id,        
       },
     ]);
 

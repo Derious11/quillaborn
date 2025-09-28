@@ -23,14 +23,17 @@ export async function POST(req: Request) {
     // Make sure invite exists and is still pending
     const { data: invite, error: inviteError } = await supabase
       .from("project_invites")
-      .select("*")
+      .select("id, status")
       .eq("project_id", projectId)
       .eq("invitee_id", user.id)
       .eq("status", "invited")
       .single();
 
     if (inviteError || !invite) {
-      return NextResponse.json({ error: "Invite not found or already handled" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Invite not found or already handled" }, 
+        { status: 404 }
+      );
     }
 
     // Update invite status → declined
