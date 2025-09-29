@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface Member {
   profiles: {
@@ -15,6 +16,12 @@ interface Member {
   } | null;
   role: string;
   status: string;
+  title?: string | null;
+}
+
+interface TitleOption {
+  id: string;
+  name: string;
 }
 
 function resolveAvatar(avatar_key?: string) {
@@ -25,7 +32,8 @@ function resolveAvatar(avatar_key?: string) {
 }
 
 export default function ProjectSettings() {
-  const { supabase } = useSupabase();
+  const { supabase, user } = useSupabase();
+  const { toast } = useToast();
   const params = useParams<{ slug: string }>();
   const router = useRouter();
 
@@ -39,8 +47,11 @@ export default function ProjectSettings() {
 
   const [members, setMembers] = useState<Member[]>([]);
   const [membersLoading, setMembersLoading] = useState(true);
+  const [isOwner, setIsOwner] = useState(false);
 
-  // Load project details + members
+  const [titleOptions, setTitleOptions] = useState<TitleOption[]>([]);
+
+  // Load project details + members + titles
   useEffect(() => {
     async function loadProject() {
       setLoading(true);
@@ -63,17 +74,18 @@ export default function ProjectSettings() {
       setLoading(false);
 
       loadMembers(data.id);
+      loadTitles();
     }
 
     async function loadMembers(projectId: string) {
       setMembersLoading(true);
 
-      // 1. Active members
-      const { data: memberData, error: memberError } = await supabase
+      const { data: memberData } = await supabase
         .from("project_members")
         .select(
           `
           role,
+          title,
           profiles (
             id,
             display_name,
@@ -84,12 +96,20 @@ export default function ProjectSettings() {
         )
         .eq("project_id", projectId);
 
-      if (memberError) {
-        console.error("Error loading members:", memberError);
-      }
+      const currentUser = memberData?.find(
+        (m: any) => m.profiles?.id === user?.id
+      );
+      setIsOwner(currentUser?.role === "owner");
 
-      // 2. Pending/declined invites
-      const { data: inviteData, error: inviteError } = await supabase
+      const activeMembers =
+        (memberData || []).map((row: any) => ({
+          role: row.role,
+          title: row.title,
+          status: "active",
+          profiles: row.profiles ? row.profiles : null,
+        })) ?? [];
+
+      const { data: inviteData } = await supabase
         .from("project_invites")
         .select(
           `
@@ -106,31 +126,30 @@ export default function ProjectSettings() {
         )
         .eq("project_id", projectId);
 
-      if (inviteError) {
-        console.error("Error loading invites:", inviteError);
-      }
-
-      // Normalize both lists
-      const activeMembers =
-        (memberData || []).map((row: any) => ({
-          role: row.role,
-          status: "active",
-          profiles: row.profiles ? row.profiles : null,
-        })) ?? [];
-
       const invites =
-        (inviteData || []).map((row: any) => ({
-          role: "member",
-          status: row.status,
-          profiles: row.profiles ? row.profiles : null,
-        })) ?? [];
+        (inviteData || [])
+          .filter((row: any) => row.status !== "accepted")
+          .map((row: any) => ({
+            role: "editor",
+            status: row.status,
+            profiles: row.profiles ? row.profiles : null,
+          })) ?? [];
 
       setMembers([...activeMembers, ...invites]);
       setMembersLoading(false);
     }
 
+    async function loadTitles() {
+      const { data } = await supabase
+        .from("member_titles")
+        .select("id, name")
+        .order("name");
+
+      setTitleOptions(data || []);
+    }
+
     loadProject();
-  }, [params.slug, supabase]);
+  }, [params.slug, supabase, user]);
 
   async function handleSave() {
     if (!project) return;
@@ -149,48 +168,87 @@ export default function ProjectSettings() {
     setSaving(false);
 
     if (error) {
-      console.error("Save error:", error);
-      alert("Failed to save changes");
+      toast({ title: "Error", description: "Failed to save project", variant: "destructive" });
     } else {
-      alert("Changes saved ✅");
+      toast({ title: "Saved", description: "Project updated successfully" });
       router.refresh();
     }
   }
 
-  async function handleDelete() {
+  async function updateRole(userId: string, newRole: string) {
     if (!project) return;
-    if (
-      !confirm(
-        "Are you sure you want to delete this project? This cannot be undone."
-      )
-    )
-      return;
-
     const { error } = await supabase
-      .from("projects")
-      .delete()
-      .eq("id", project.id);
+      .from("project_members")
+      .update({ role: newRole })
+      .eq("project_id", project.id)
+      .eq("user_id", userId);
 
     if (error) {
-      console.error("Delete error:", error);
-      alert("Failed to delete project");
+      toast({ title: "Error", description: "Failed to update role", variant: "destructive" });
     } else {
-      alert("Project deleted");
-      router.push("/p");
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.profiles?.id === userId ? { ...m, role: newRole } : m
+        )
+      );
+      toast({ title: "Role updated", description: "Member role changed" });
     }
   }
 
-  if (loading) {
-    return <p className="text-gray-400">Loading project...</p>;
+  async function updateTitle(userId: string, newTitle: string) {
+    if (!project) return;
+    const { error } = await supabase
+      .from("project_members")
+      .update({ title: newTitle })
+      .eq("project_id", project.id)
+      .eq("user_id", userId);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update title", variant: "destructive" });
+    } else {
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.profiles?.id === userId ? { ...m, title: newTitle } : m
+        )
+      );
+      toast({ title: "Title updated", description: `Set to "${newTitle}"` });
+    }
   }
 
+  async function removeMember(userId: string) {
+    if (!project) return;
+
+    const owners = members.filter((m) => m.role === "owner" && m.status === "active");
+    const isLastOwner = owners.length === 1 && owners[0].profiles?.id === userId;
+
+    if (isLastOwner) {
+      toast({ title: "Not allowed", description: "Cannot remove the last owner", variant: "destructive" });
+      return;
+    }
+
+    if (!confirm("Are you sure you want to remove this member?")) return;
+
+    const { error } = await supabase
+      .from("project_members")
+      .delete()
+      .eq("project_id", project.id)
+      .eq("user_id", userId);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to remove member", variant: "destructive" });
+    } else {
+      setMembers((prev) => prev.filter((m) => m.profiles?.id !== userId));
+      toast({ title: "Member removed", description: "User removed from project" });
+    }
+  }
+
+  if (loading) return <p className="text-gray-400">Loading project...</p>;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto px-4 sm:px-6">
       {/* General Settings */}
       <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-lg p-6">
-        <h2 className="text-xl font-bold text-green-400 mb-4">
-          General Settings
-        </h2>
+        <h2 className="text-xl font-bold text-green-400 mb-4">General Settings</h2>
         <div className="space-y-4">
           <div>
             <label className="block text-sm text-gray-400">Project Name</label>
@@ -198,7 +256,7 @@ export default function ProjectSettings() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2"
             />
           </div>
           <div>
@@ -207,7 +265,7 @@ export default function ProjectSettings() {
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               rows={3}
-              className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2"
             />
           </div>
           <div>
@@ -215,7 +273,7 @@ export default function ProjectSettings() {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2"
             >
               <option value="active">Active</option>
               <option value="archived">Archived</option>
@@ -224,22 +282,18 @@ export default function ProjectSettings() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-gray-900 font-semibold rounded-full transition disabled:opacity-50"
+            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-gray-900 font-semibold rounded-full transition disabled:opacity-50 w-full sm:w-auto"
           >
             {saving ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>
 
-      {/* Members Section */}
+      {/* Members */}
       <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-lg p-6">
-        <h2 className="text-xl font-bold text-green-400 mb-4">
-          Project Members
-        </h2>
+        <h2 className="text-xl font-bold text-green-400 mb-4">Project Members</h2>
         {membersLoading ? (
           <p className="text-gray-400">Loading members...</p>
-        ) : members.length === 0 ? (
-          <p className="text-gray-400">No members yet.</p>
         ) : (
           <ul className="space-y-3">
             {members.map(
@@ -247,7 +301,7 @@ export default function ProjectSettings() {
                 m.profiles && (
                   <li
                     key={m.profiles.id}
-                    className="flex items-center justify-between bg-gray-800 p-3 rounded-lg"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-gray-800 p-3 rounded-lg gap-3"
                   >
                     <div className="flex items-center gap-3">
                       <Image
@@ -261,37 +315,47 @@ export default function ProjectSettings() {
                         <span className="text-white font-medium">
                           {m.profiles.display_name || m.profiles.username}
                         </span>
-                        <p className="text-xs text-gray-500">
-                          @{m.profiles.username}
-                        </p>
+                        {m.title && <p className="text-xs text-green-400">{m.title}</p>}
+                        <p className="text-xs text-gray-500">@{m.profiles.username}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {m.status === "active" ? (
-                        <span className="text-gray-300 text-sm capitalize">
-                          {m.role}
-                        </span>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                      {m.status === "active" && isOwner ? (
+                        <>
+                          <select
+                            value={m.role}
+                            onChange={(e) => updateRole(m.profiles!.id, e.target.value)}
+                            className="bg-gray-700 text-white text-sm rounded px-2 py-1"
+                          >
+                            <option value="owner">Owner</option>
+                            <option value="editor">Editor</option>
+                            <option value="viewer">Viewer</option>
+                          </select>
+
+                          <select
+                            value={m.title || ""}
+                            onChange={(e) => updateTitle(m.profiles!.id, e.target.value)}
+                            className="bg-gray-700 text-white text-sm rounded px-2 py-1"
+                          >
+                            <option value="">None</option>
+                            {titleOptions.map((t) => (
+                              <option key={t.id} value={t.name}>
+                                {t.name}
+                              </option>
+                            ))}
+                          </select>
+                        </>
                       ) : (
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full ${
-                            m.status === "invited"
-                              ? "bg-yellow-600 text-yellow-100"
-                              : m.status === "declined"
-                              ? "bg-red-600 text-red-100"
-                              : "bg-gray-600 text-gray-100"
-                          }`}
-                        >
-                          {m.status}
-                        </span>
+                        <span className="text-gray-300 text-sm capitalize">{m.role}</span>
                       )}
-                      {m.status === "active" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-gray-700 text-gray-300 hover:text-red-400 hover:border-red-400 rounded-full"
+
+                      {m.status === "active" && isOwner && (
+                        <button
+                          onClick={() => removeMember(m.profiles!.id)}
+                          className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-full transition w-full sm:w-auto"
                         >
                           Remove
-                        </Button>
+                        </button>
                       )}
                     </div>
                   </li>
@@ -308,8 +372,8 @@ export default function ProjectSettings() {
           Once you delete a project, there is no going back. Please be certain.
         </p>
         <button
-          onClick={handleDelete}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full transition"
+          onClick={() => handleSave()}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full transition w-full sm:w-auto"
         >
           Delete Project
         </button>

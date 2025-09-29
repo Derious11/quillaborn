@@ -383,7 +383,7 @@ export default function Board() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="mt-4 w-full border-gray-700 text-gray-300 hover:text-green-400 hover:border-green-400 rounded-full"
+                       className="mt-4 w-full bg-green-500 hover:bg-green-600 text-gray-900 font-semibold rounded-full transition"
                       onClick={() => setActiveList(list.id)}
                     >
                       + Add Card
