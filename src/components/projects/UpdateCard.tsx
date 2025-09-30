@@ -82,25 +82,45 @@ export default function UpdateCard({
       {/* Body */}
       {editing ? (
         <form onSubmit={handleUpdate} className="space-y-3">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded-lg border border-green-400 bg-white/10 text-white placeholder-green-100 p-2 focus:ring-2 focus:ring-green-400"
-            required
-          />
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            className="w-full rounded-lg border border-green-400 bg-white/10 text-white placeholder-green-100 p-2 focus:ring-2 focus:ring-green-400"
-            rows={4}
-            required
-          />
+          {/* Title input with label */}
+          <div>
+            <label htmlFor={`update-title-${update.id}`} className="block text-sm mb-1">
+              Update Title
+            </label>
+            <input
+              id={`update-title-${update.id}`}
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter update title"
+              className="w-full rounded-lg border border-green-400 bg-white/10 text-white placeholder-green-100 p-2 focus:ring-2 focus:ring-green-400"
+              required
+            />
+          </div>
+
+          {/* Body textarea with label */}
+          <div>
+            <label htmlFor={`update-body-${update.id}`} className="block text-sm mb-1">
+              Update Body
+            </label>
+            <textarea
+              id={`update-body-${update.id}`}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Write your update..."
+              className="w-full rounded-lg border border-green-400 bg-white/10 text-white placeholder-green-100 p-2 focus:ring-2 focus:ring-green-400"
+              rows={4}
+              required
+            />
+          </div>
+
+          {/* Form actions */}
           <div className="flex gap-2">
             <button
               type="submit"
               disabled={loading}
               className="px-3 py-1 rounded-lg bg-green-600 text-white hover:bg-green-700 transition"
+              aria-label="Save update"
             >
               {loading ? "Saving…" : "Save"}
             </button>
@@ -108,6 +128,7 @@ export default function UpdateCard({
               type="button"
               onClick={() => setEditing(false)}
               className="px-3 py-1 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 transition"
+              aria-label="Cancel editing update"
             >
               Cancel
             </button>
@@ -132,6 +153,7 @@ export default function UpdateCard({
               target="_blank"
               rel="noreferrer"
               className="px-2 py-1 rounded-lg bg-green-900/40 text-green-200 text-sm hover:bg-green-900/60 transition"
+              aria-label={`Attachment ${i + 1}`}
             >
               Attachment {i + 1}
             </a>
@@ -145,6 +167,7 @@ export default function UpdateCard({
           <button
             onClick={() => setEditing(true)}
             className="text-sm text-green-300 hover:text-white transition"
+            aria-label="Edit update"
           >
             Edit
           </button>
@@ -152,13 +175,14 @@ export default function UpdateCard({
             onClick={() => setShowDeleteModal(true)}
             disabled={loading}
             className="text-sm text-red-400 hover:text-red-500 transition"
+            aria-label="Delete update"
           >
             Delete
           </button>
         </div>
       )}
 
-      {/* Modern Delete Modal */}
+      {/* Delete Modal */}
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
         <div className="p-6 flex flex-col gap-4">
           <h2 className="text-lg font-semibold text-white">
@@ -172,6 +196,7 @@ export default function UpdateCard({
             <button
               onClick={() => setShowDeleteModal(false)}
               className="px-4 py-2 rounded-lg bg-gray-700 text-gray-200 hover:bg-gray-600 transition"
+              aria-label="Cancel delete"
             >
               Cancel
             </button>
@@ -179,6 +204,7 @@ export default function UpdateCard({
               onClick={handleDelete}
               disabled={loading}
               className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+              aria-label="Confirm delete"
             >
               {loading ? "Deleting…" : "Delete"}
             </button>

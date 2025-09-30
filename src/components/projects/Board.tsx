@@ -63,10 +63,15 @@ export default function Board() {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
+  const [role, setRole] = useState<"owner" | "admin" | "editor" | "viewer">("viewer");
+  const [projectId, setProjectId] = useState<string | null>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 6 } })
   );
+
+  const canEdit = role === "owner" || role === "admin" || role === "editor";
 
   const listIds = useMemo(() => new Set(lists.map((l) => l.id)), [lists]);
 
@@ -80,7 +85,9 @@ export default function Board() {
         .eq("slug", slug)
         .single();
       if (!project) return setLoading(false);
+      setProjectId(project.id);
 
+      // fetch board
       const { data: board } = await supabase
         .from("boards")
         .select("id")
@@ -113,6 +120,27 @@ export default function Board() {
     if (slug) fetchListsAndCards();
   }, [supabase, slug]);
 
+  // fetch current user role
+  useEffect(() => {
+    async function fetchRole() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || !projectId) return;
+
+      const { data: projectMember } = await supabase
+        .from("project_members")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("project_id", projectId)
+        .single();
+
+      if (projectMember?.role) setRole(projectMember.role);
+    }
+    fetchRole();
+  }, [supabase, projectId]);
+
+  // --- card helpers ---
   function findCardLocation(cardId: string): { listIndex: number; cardIndex: number } | null {
     for (let li = 0; li < lists.length; li++) {
       const ci = lists[li].cards.findIndex((c) => c.id === cardId);
@@ -131,6 +159,7 @@ export default function Board() {
   }
 
   async function handleAddCard(listId: string) {
+    if (!canEdit) return;
     if (!newCardTitle.trim()) return;
 
     const {
@@ -138,11 +167,8 @@ export default function Board() {
     } = await supabase.auth.getUser();
 
     const targetList = lists.find((l) => l.id === listId);
+    if (!targetList) return;
 
-    if (!targetList) {
-      console.error("Target list not found:", listId);
-      return;
-    }
     const nextPos =
       targetList.cards.length > 0
         ? targetList.cards[targetList.cards.length - 1].position + 100
@@ -172,10 +198,12 @@ export default function Board() {
   }
 
   function handleDragStart(event: DragStartEvent) {
+    if (!canEdit) return;
     setActiveCardId(String(event.active.id));
   }
 
   function handleDragOver(event: DragOverEvent) {
+    if (!canEdit) return;
     const { active, over } = event;
     if (!over) return;
 
@@ -217,6 +245,7 @@ export default function Board() {
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    if (!canEdit) return;
     const { active, over } = event;
     if (!over) {
       setActiveCardId(null);
@@ -310,11 +339,11 @@ export default function Board() {
   return (
     <div className="p-4">
       <DndContext
-        sensors={sensors}
+        sensors={canEdit ? sensors : []}
         collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
+        onDragStart={canEdit ? handleDragStart : undefined}
+        onDragOver={canEdit ? handleDragOver : undefined}
+        onDragEnd={canEdit ? handleDragEnd : undefined}
       >
         <div
           className="
@@ -362,32 +391,34 @@ export default function Board() {
                     </Droppable>
                   </SortableContext>
 
-                  {activeList === list.id ? (
-                    <div className="mt-4 flex gap-2">
-                      <Input
-                        value={newCardTitle}
-                        onChange={(e) => setNewCardTitle(e.target.value)}
-                        placeholder="New card title"
-                        className="bg-gray-800 border-gray-700 text-white placeholder-gray-500"
-                      />
+                  {canEdit && (
+                    activeList === list.id ? (
+                      <div className="mt-4 flex gap-2">
+                        <Input
+                          value={newCardTitle}
+                          onChange={(e) => setNewCardTitle(e.target.value)}
+                          placeholder="New card title"
+                          className="bg-gray-800 border-gray-700 text-white placeholder-gray-500"
+                        />
+                        <Button
+                          size="icon"
+                          onClick={() => handleAddCard(list.id)}
+                          disabled={!newCardTitle.trim()}
+                          className="bg-green-500 hover:bg-green-600 text-gray-900 rounded-full"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
                       <Button
-                        size="icon"
-                        onClick={() => handleAddCard(list.id)}
-                        disabled={!newCardTitle.trim()}
-                        className="bg-green-500 hover:bg-green-600 text-gray-900 rounded-full"
+                        variant="outline"
+                        size="sm"
+                        className="mt-4 w-full bg-green-500 hover:bg-green-600 text-gray-900 font-semibold rounded-full transition"
+                        onClick={() => setActiveList(list.id)}
                       >
-                        <Plus className="h-4 w-4" />
+                        + Add Card
                       </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                       className="mt-4 w-full bg-green-500 hover:bg-green-600 text-gray-900 font-semibold rounded-full transition"
-                      onClick={() => setActiveList(list.id)}
-                    >
-                      + Add Card
-                    </Button>
+                    )
                   )}
                 </CardContent>
               </Card>
@@ -414,6 +445,7 @@ export default function Board() {
       <CardDetailsModal
         cardId={selectedCard}
         onClose={() => setSelectedCard(null)}
+        role={role}
       />
     </div>
   );

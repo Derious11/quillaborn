@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
 interface Member {
@@ -99,7 +98,9 @@ export default function ProjectSettings() {
       const currentUser = memberData?.find(
         (m: any) => m.profiles?.id === user?.id
       );
-      setIsOwner(currentUser?.role === "owner");
+      setIsOwner(
+        currentUser?.role === "owner" || currentUser?.role === "admin"
+      );
 
       const activeMembers =
         (memberData || []).map((row: any) => ({
@@ -168,10 +169,40 @@ export default function ProjectSettings() {
     setSaving(false);
 
     if (error) {
-      toast({ title: "Error", description: "Failed to save project", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to save project",
+        variant: "destructive",
+      });
     } else {
       toast({ title: "Saved", description: "Project updated successfully" });
       router.refresh();
+    }
+  }
+
+  async function deleteProject() {
+    if (!project) return;
+    if (
+      !confirm(
+        "Are you sure you want to delete this project? This action cannot be undone."
+      )
+    )
+      return;
+
+    const { error } = await supabase
+      .from("projects")
+      .delete()
+      .eq("id", project.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete project",
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Deleted", description: "Project removed successfully" });
+      router.push("/dashboard");
     }
   }
 
@@ -183,9 +214,7 @@ export default function ProjectSettings() {
       .eq("project_id", project.id)
       .eq("user_id", userId);
 
-    if (error) {
-      toast({ title: "Error", description: "Failed to update role", variant: "destructive" });
-    } else {
+    if (!error) {
       setMembers((prev) =>
         prev.map((m) =>
           m.profiles?.id === userId ? { ...m, role: newRole } : m
@@ -203,9 +232,7 @@ export default function ProjectSettings() {
       .eq("project_id", project.id)
       .eq("user_id", userId);
 
-    if (error) {
-      toast({ title: "Error", description: "Failed to update title", variant: "destructive" });
-    } else {
+    if (!error) {
       setMembers((prev) =>
         prev.map((m) =>
           m.profiles?.id === userId ? { ...m, title: newTitle } : m
@@ -217,15 +244,6 @@ export default function ProjectSettings() {
 
   async function removeMember(userId: string) {
     if (!project) return;
-
-    const owners = members.filter((m) => m.role === "owner" && m.status === "active");
-    const isLastOwner = owners.length === 1 && owners[0].profiles?.id === userId;
-
-    if (isLastOwner) {
-      toast({ title: "Not allowed", description: "Cannot remove the last owner", variant: "destructive" });
-      return;
-    }
-
     if (!confirm("Are you sure you want to remove this member?")) return;
 
     const { error } = await supabase
@@ -234,9 +252,7 @@ export default function ProjectSettings() {
       .eq("project_id", project.id)
       .eq("user_id", userId);
 
-    if (error) {
-      toast({ title: "Error", description: "Failed to remove member", variant: "destructive" });
-    } else {
+    if (!error) {
       setMembers((prev) => prev.filter((m) => m.profiles?.id !== userId));
       toast({ title: "Member removed", description: "User removed from project" });
     }
@@ -250,42 +266,78 @@ export default function ProjectSettings() {
       <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-lg p-6">
         <h2 className="text-xl font-bold text-green-400 mb-4">General Settings</h2>
         <div className="space-y-4">
+          {/* Project Name */}
           <div>
-            <label className="block text-sm text-gray-400">Project Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2"
-            />
+            <label htmlFor="project-name" className="block text-sm text-gray-400">
+              Project Name
+            </label>
+            {isOwner ? (
+              <input
+                id="project-name"
+                type="text"
+                value={name}
+                placeholder="Enter project name"
+                onChange={(e) => setName(e.target.value)}
+                className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2"
+              />
+            ) : (
+              <p className="mt-1 text-white">{name}</p>
+            )}
           </div>
+
+          {/* Summary */}
           <div>
-            <label className="block text-sm text-gray-400">Summary</label>
-            <textarea
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              rows={3}
-              className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2"
-            />
+            <label htmlFor="project-summary" className="block text-sm text-gray-400">
+              Summary
+            </label>
+            {isOwner ? (
+              <textarea
+                id="project-summary"
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                rows={3}
+                placeholder="Enter project summary"
+                className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2"
+              />
+            ) : (
+              <p className="mt-1 text-white whitespace-pre-line">{summary}</p>
+            )}
           </div>
-          <div>
-            <label className="block text-sm text-gray-400">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2"
+
+          {/* Status */}
+          {isOwner ? (
+            <div>
+              <label htmlFor="project-status" className="block text-sm text-gray-400">
+                Status
+              </label>
+              <select
+                id="project-status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2"
+              >
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm text-gray-400">Status</label>
+              <p className="mt-1 text-white capitalize">{status}</p>
+            </div>
+          )}
+
+          {/* Save button only for owner/admin */}
+          {isOwner && (
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-gray-900 font-semibold rounded-full transition disabled:opacity-50 w-full sm:w-auto"
+              aria-label="Save project changes"
             >
-              <option value="active">Active</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-gray-900 font-semibold rounded-full transition disabled:opacity-50 w-full sm:w-auto"
-          >
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -315,26 +367,43 @@ export default function ProjectSettings() {
                         <span className="text-white font-medium">
                           {m.profiles.display_name || m.profiles.username}
                         </span>
-                        {m.title && <p className="text-xs text-green-400">{m.title}</p>}
-                        <p className="text-xs text-gray-500">@{m.profiles.username}</p>
+                        {m.title && (
+                          <p className="text-xs text-green-400">{m.title}</p>
+                        )}
+                        <p className="text-xs text-gray-500">
+                          @{m.profiles.username}
+                        </p>
                       </div>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                       {m.status === "active" && isOwner ? (
                         <>
+                          <label htmlFor={`role-${m.profiles.id}`} className="sr-only">
+                            Role
+                          </label>
                           <select
+                            id={`role-${m.profiles.id}`}
                             value={m.role}
-                            onChange={(e) => updateRole(m.profiles!.id, e.target.value)}
+                            onChange={(e) =>
+                              updateRole(m.profiles!.id, e.target.value)
+                            }
                             className="bg-gray-700 text-white text-sm rounded px-2 py-1"
                           >
                             <option value="owner">Owner</option>
+                            <option value="admin">Admin</option>
                             <option value="editor">Editor</option>
                             <option value="viewer">Viewer</option>
                           </select>
 
+                          <label htmlFor={`title-${m.profiles.id}`} className="sr-only">
+                            Title
+                          </label>
                           <select
+                            id={`title-${m.profiles.id}`}
                             value={m.title || ""}
-                            onChange={(e) => updateTitle(m.profiles!.id, e.target.value)}
+                            onChange={(e) =>
+                              updateTitle(m.profiles!.id, e.target.value)
+                            }
                             className="bg-gray-700 text-white text-sm rounded px-2 py-1"
                           >
                             <option value="">None</option>
@@ -346,13 +415,16 @@ export default function ProjectSettings() {
                           </select>
                         </>
                       ) : (
-                        <span className="text-gray-300 text-sm capitalize">{m.role}</span>
+                        <span className="text-gray-300 text-sm capitalize">
+                          {m.role}
+                        </span>
                       )}
 
                       {m.status === "active" && isOwner && (
                         <button
                           onClick={() => removeMember(m.profiles!.id)}
                           className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-full transition w-full sm:w-auto"
+                          aria-label={`Remove ${m.profiles.display_name || m.profiles.username}`}
                         >
                           Remove
                         </button>
@@ -365,19 +437,22 @@ export default function ProjectSettings() {
         )}
       </div>
 
-      {/* Danger Zone */}
-      <div className="bg-gray-900 border border-red-700 rounded-2xl shadow-lg p-6">
-        <h2 className="text-xl font-bold text-red-400 mb-4">Danger Zone</h2>
-        <p className="text-gray-400 mb-4">
-          Once you delete a project, there is no going back. Please be certain.
-        </p>
-        <button
-          onClick={() => handleSave()}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full transition w-full sm:w-auto"
-        >
-          Delete Project
-        </button>
-      </div>
+      {/* Danger Zone (only owner/admin) */}
+      {isOwner && (
+        <div className="bg-gray-900 border border-red-700 rounded-2xl shadow-lg p-6">
+          <h2 className="text-xl font-bold text-red-400 mb-4">Danger Zone</h2>
+          <p className="text-gray-400 mb-4">
+            Once you delete a project, there is no going back. Please be certain.
+          </p>
+          <button
+            onClick={deleteProject}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full transition w-full sm:w-auto"
+            aria-label="Delete project"
+          >
+            Delete Project
+          </button>
+        </div>
+      )}
     </div>
   );
 }

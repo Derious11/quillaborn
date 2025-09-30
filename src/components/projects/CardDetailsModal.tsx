@@ -21,6 +21,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 type CardDetailsModalProps = {
   cardId: string | null;
   onClose: () => void;
+  role: "owner" | "admin" | "editor" | "viewer"; // 🔑 role passed in
 };
 
 type Card = {
@@ -37,8 +38,8 @@ type Assignee = {
 };
 
 type Member = {
-  userId: string; // auth.users.id
-  profile: Profile; // corresponding profiles row
+  userId: string;
+  profile: Profile;
 };
 
 type Comment = {
@@ -49,7 +50,6 @@ type Comment = {
 };
 
 // ---- helpers ---------------------------------------------------------------
-
 function makePlaceholderProfile(userId: string, username = "User"): Profile {
   return {
     id: userId,
@@ -63,18 +63,12 @@ function makePlaceholderProfile(userId: string, username = "User"): Profile {
     bio: null,
     pronouns: null,
     onboarding_complete: false,
-    // add any other optional fields your Profile type expects with safe defaults
   } as Profile;
 }
 
-/**
- * Supabase can return a joined relation as an object or an array (depending on FK shape).
- * This normalizes it to a single Profile so TS stops complaining.
- */
 function coerceProfile(input: any, fallbackId = "unknown", fallbackName = "Unknown"): Profile {
   const p = Array.isArray(input) ? input[0] : input;
   if (!p) return makePlaceholderProfile(fallbackId, fallbackName);
-
   return {
     id: String(p.id ?? fallbackId),
     username: String(p.username ?? fallbackName),
@@ -91,8 +85,7 @@ function coerceProfile(input: any, fallbackId = "unknown", fallbackName = "Unkno
 }
 
 // ---- component -------------------------------------------------------------
-
-export default function CardDetailsModal({ cardId, onClose }: CardDetailsModalProps) {
+export default function CardDetailsModal({ cardId, onClose, role }: CardDetailsModalProps) {
   const { supabase } = useSupabase();
   const { toast } = useToast();
 
@@ -104,6 +97,9 @@ export default function CardDetailsModal({ cardId, onClose }: CardDetailsModalPr
   const [members, setMembers] = useState<Member[]>([]);
   const [assigneePickerOpen, setAssigneePickerOpen] = useState(false);
 
+  const canEdit = role === "owner" || role === "admin" || role === "editor";
+
+  // --- fetch data ---
   useEffect(() => {
     if (!cardId) return;
     let cancelled = false;
@@ -112,73 +108,42 @@ export default function CardDetailsModal({ cardId, onClose }: CardDetailsModalPr
       try {
         setLoading(true);
 
-        // Card
-        const { data: cardData, error: cardErr } = await supabase
+        const { data: cardData } = await supabase
           .from("cards")
           .select("id, title, description, due_at, board_list_id")
           .eq("id", cardId)
           .single();
-        if (cardErr) console.error(cardErr);
         if (!cancelled) setCard(cardData ?? null);
 
-        // Assignees (FK -> profiles now; still normalize in case it returns an array)
-        const { data: rawAssignees, error: assErr } = await supabase
+        const { data: rawAssignees } = await supabase
           .from("card_assignees")
           .select("user_id, profiles(*)")
           .eq("card_id", cardId);
-        if (assErr) console.error(assErr);
 
-        const normalizedAssignees: Assignee[] = (rawAssignees ?? []).map((row: any) => ({
-          userId: String(row.user_id),
-          profile: coerceProfile(row.profiles, row.user_id),
-        }));
-        if (!cancelled) setAssignees(normalizedAssignees);
+        if (!cancelled) {
+          setAssignees(
+            (rawAssignees ?? []).map((row: any) => ({
+              userId: String(row.user_id),
+              profile: coerceProfile(row.profiles, row.user_id),
+            }))
+          );
+        }
 
-        // Comments (FK -> profiles; normalize)
-        const { data: rawComments, error: comErr } = await supabase
+        const { data: rawComments } = await supabase
           .from("card_comments")
           .select("id, body, created_at, profiles(*)")
           .eq("card_id", cardId)
           .order("created_at", { ascending: true });
-        if (comErr) console.error(comErr);
 
-        const normalizedComments: Comment[] = (rawComments ?? []).map((row: any) => ({
-          id: String(row.id),
-          body: String(row.body ?? ""),
-          created_at: String(row.created_at ?? new Date().toISOString()),
-          author: coerceProfile(row.profiles),
-        }));
-        if (!cancelled) setComments(normalizedComments);
-
-        // Members (via board_list -> board -> project_members -> profiles)
-        if (cardData?.board_list_id) {
-          const { data: list } = await supabase
-            .from("board_lists")
-            .select("board_id")
-            .eq("id", cardData.board_list_id)
-            .single();
-
-          if (list) {
-            const { data: board } = await supabase
-              .from("boards")
-              .select("project_id")
-              .eq("id", list.board_id)
-              .single();
-
-            if (board) {
-              const { data: projectMembers, error: memErr } = await supabase
-                .from("project_members")
-                .select("user_id, profiles(*)")
-                .eq("project_id", board.project_id);
-              if (memErr) console.error(memErr);
-
-              const normalizedMembers: Member[] = (projectMembers ?? []).map((row: any) => ({
-                userId: String(row.user_id),
-                profile: coerceProfile(row.profiles, row.user_id),
-              }));
-              if (!cancelled) setMembers(normalizedMembers);
-            }
-          }
+        if (!cancelled) {
+          setComments(
+            (rawComments ?? []).map((row: any) => ({
+              id: String(row.id),
+              body: String(row.body ?? ""),
+              created_at: String(row.created_at ?? new Date().toISOString()),
+              author: coerceProfile(row.profiles),
+            }))
+          );
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -191,8 +156,9 @@ export default function CardDetailsModal({ cardId, onClose }: CardDetailsModalPr
     };
   }, [cardId, supabase]);
 
+  // --- actions ---
   async function handleSave() {
-    if (!card) return;
+    if (!canEdit || !card) return;
     const { error } = await supabase
       .from("cards")
       .update({
@@ -210,109 +176,54 @@ export default function CardDetailsModal({ cardId, onClose }: CardDetailsModalPr
     }
   }
 
-  async function handleAddAssignee(userId: string): Promise<boolean> {
-    if (!card) {
-      console.warn("handleAddAssignee: no card loaded", { userId });
-      toast({ variant: "destructive", title: "No card", description: "Card not loaded yet." });
-      return false;
-    }
-
-    // Prevent duplicate assignment in UI and DB
-    if (assignees.some((a) => a.userId === userId)) {
-      console.info("handleAddAssignee: already assigned", { userId });
-      toast({ title: "Already assigned", description: "This member is already on the card." });
-      return true;
-    }
-
-    console.log("handleAddAssignee: inserting", { cardId: card.id, userId });
-    const { error } = await supabase
-      .from("card_assignees")
-      .insert([{ card_id: card.id, user_id: userId }]);
-
-    if (error) {
-      const code = (error as any)?.code;
-      console.error("handleAddAssignee: insert error", { code, error });
-      const isUniqueViolation = code === "23505"; // unique (already assigned)
-      toast({
-        variant: isUniqueViolation ? undefined : "destructive",
-        title: isUniqueViolation ? "Already assigned" : "Error",
-        description: isUniqueViolation
-          ? "This member is already on the card."
-          : (error as any)?.message || "Failed to add assignee.",
-      });
-      if (!isUniqueViolation) return false;
-      // If unique violation, we still want UI to reflect assigned state
-    }
-
+  async function handleAddAssignee(userId: string) {
+    if (!canEdit || !card) return false;
+    await supabase.from("card_assignees").insert([{ card_id: card.id, user_id: userId }]);
     const member = members.find((m) => m.userId === userId);
-    const prof = member?.profile ?? makePlaceholderProfile(userId);
-    setAssignees((prev) => [...prev, { userId, profile: prof }]);
-    console.log("handleAddAssignee: success, UI updated");
-    toast({ title: "Assignee added", description: "Member assigned to this card." });
+    setAssignees((prev) => [...prev, { userId, profile: member?.profile ?? makePlaceholderProfile(userId) }]);
     return true;
   }
 
   async function handleRemoveAssignee(userId: string) {
-    if (!card) return;
-    const { error } = await supabase
-      .from("card_assignees")
-      .delete()
-      .eq("card_id", card.id)
-      .eq("user_id", userId);
-
-    if (error) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to remove assignee." });
-      return;
-    }
+    if (!canEdit || !card) return;
+    await supabase.from("card_assignees").delete().eq("card_id", card.id).eq("user_id", userId);
     setAssignees((prev) => prev.filter((a) => a.userId !== userId));
-    toast({ title: "Assignee removed", description: "Member removed from this card." });
   }
 
   async function handleAddComment() {
     if (!card || !newComment.trim()) return;
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const { data, error } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data } = await supabase
       .from("card_comments")
       .insert([{ card_id: card.id, author_id: user?.id, body: newComment }])
       .select("id, body, created_at, profiles(*)")
       .single();
-      console.log("Insert result", { data, error });
-
-    if (error) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to add comment." });
-      return;
-    }
 
     if (data) {
-      const author = coerceProfile((data as any).profiles, user?.id ?? "unknown", "You");
       setComments((prev) => [
         ...prev,
         {
-          id: String((data as any).id),
-          body: String((data as any).body ?? ""),
-          created_at: String((data as any).created_at ?? new Date().toISOString()),
-          author,
+          id: String(data.id),
+          body: String(data.body ?? ""),
+          created_at: String(data.created_at ?? new Date().toISOString()),
+          author: coerceProfile((data as any).profiles, user?.id ?? "unknown", "You"),
         },
       ]);
-      toast({ title: "Comment added", description: "Your comment was posted." });
+      setNewComment("");
     }
-    setNewComment("");
   }
 
   if (!cardId) return null;
 
+  // --- render ---
   return (
     <Dialog open={!!cardId} onOpenChange={(open) => !open && onClose()}>
       <DialogContent aria-describedby="card-details-description">
         <DialogHeader>
-          <DialogTitle>Edit Card</DialogTitle>
+          <DialogTitle>Card Details</DialogTitle>
         </DialogHeader>
         <DialogDescription id="card-details-description">
-          Edit card details, assignees, and comments.
+          View or edit card details
         </DialogDescription>
 
         {loading ? (
@@ -321,32 +232,41 @@ export default function CardDetailsModal({ cardId, onClose }: CardDetailsModalPr
           <div className="space-y-6">
             {/* Title */}
             <div>
-              <label className="block text-sm mb-1">Title</label>
+              <label htmlFor="card-title" className="block text-sm mb-1">Title</label>
               <Input
+                id="card-title"
                 value={card?.title || ""}
-                onChange={(e) => setCard({ ...(card as Card), title: e.target.value })}
+                onChange={(e) => canEdit && setCard({ ...(card as Card), title: e.target.value })}
+                readOnly={!canEdit}
+                placeholder="Enter card title"
                 className="bg-gray-800 border border-gray-700 text-white placeholder-gray-400"
               />
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-sm mb-1">Description</label>
+              <label htmlFor="card-description" className="block text-sm mb-1">Description</label>
               <textarea
+                id="card-description"
                 value={card?.description || ""}
-                onChange={(e) => setCard({ ...(card as Card), description: e.target.value })}
+                onChange={(e) => canEdit && setCard({ ...(card as Card), description: e.target.value })}
+                readOnly={!canEdit}
                 rows={4}
+                placeholder="Enter card description"
                 className="w-full rounded-md bg-gray-800 border border-gray-700 text-white p-2 placeholder-gray-400"
               />
             </div>
 
             {/* Due Date */}
             <div>
-              <label className="block text-sm mb-1">Due Date</label>
+              <label htmlFor="card-due-date" className="block text-sm mb-1">Due Date</label>
               <Input
+                id="card-due-date"
                 type="date"
                 value={card?.due_at ? String(card.due_at).split("T")[0] : ""}
-                onChange={(e) => setCard({ ...(card as Card), due_at: e.target.value || null })}
+                onChange={(e) => canEdit && setCard({ ...(card as Card), due_at: e.target.value || null })}
+                readOnly={!canEdit}
+                placeholder="Select due date"
                 className="bg-gray-800 border border-gray-700 text-white"
               />
             </div>
@@ -359,59 +279,56 @@ export default function CardDetailsModal({ cardId, onClose }: CardDetailsModalPr
                   <div key={a.userId} className="flex items-center gap-1 bg-gray-800 px-2 py-1 rounded-full">
                     <Avatar profile={a.profile} size={6} alt={a.profile.username} />
                     <span className="text-xs">{a.profile.username}</span>
-                    <button
-                      className="text-red-400 hover:text-red-500"
-                      onClick={() => handleRemoveAssignee(a.userId)}
-                      title="Remove"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+                    {canEdit && (
+                      <button
+                        className="text-red-400 hover:text-red-500"
+                        onClick={() => handleRemoveAssignee(a.userId)}
+                        aria-label={`Remove ${a.profile.username}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
 
-              <Popover open={assigneePickerOpen} onOpenChange={setAssigneePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="bg-gray-800 text-gray-300 border border-gray-600 hover:text-white hover:border-green-400"
-                  >
-                    <Plus className="h-4 w-4 mr-1" /> Add Assignee
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="bg-gray-900 border border-gray-700 rounded-lg p-2 w-56">
-                  {members
-                    .filter((m) => !assignees.some((a) => a.userId === m.userId))
-                    .map((m) => (
-                      <button
-                        key={m.userId}
-                        type="button"
-                        className="w-full text-left flex items-center gap-2 p-2 rounded cursor-pointer transition-colors text-gray-200 hover:text-white bg-transparent hover:bg-gray-700 focus:bg-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-green-400 hover:ring-1 hover:ring-green-400"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          console.log("assignee option mousedown", { userId: m.userId });
-                        }}
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          console.log("assignee option click", { userId: m.userId });
-                          const ok = await handleAddAssignee(m.userId);
-                          if (ok) setAssigneePickerOpen(false);
-                        }}
-                      >
-                        <Avatar profile={m.profile} size={6} alt={m.profile.username} />
-                        <span className="text-sm text-gray-200">{m.profile.username}</span>
-                      </button>
-                    ))}
-                </PopoverContent>
-              </Popover>
+              {canEdit && (
+                <Popover open={assigneePickerOpen} onOpenChange={setAssigneePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-gray-800 text-gray-300"
+                      aria-label="Add assignee"
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Assignee
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="bg-gray-900 border border-gray-700 rounded-lg p-2 w-56">
+                    {members
+                      .filter((m) => !assignees.some((a) => a.userId === m.userId))
+                      .map((m) => (
+                        <button
+                          key={m.userId}
+                          type="button"
+                          className="w-full flex items-center gap-2 p-2 rounded hover:bg-gray-700"
+                          onClick={async () => {
+                            const ok = await handleAddAssignee(m.userId);
+                            if (ok) setAssigneePickerOpen(false);
+                          }}
+                        >
+                          <Avatar profile={m.profile} size={6} alt={m.profile.username} />
+                          <span className="text-sm">{m.profile.username}</span>
+                        </button>
+                      ))}
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
 
             {/* Comments */}
             <div>
-              <label className="block text-sm mb-2">Comments</label>
+              <label className="block text-sm mb-2" htmlFor="new-comment">Comments</label>
               <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
                 {comments.map((c) => (
                   <div key={c.id} className="flex gap-2 items-start">
@@ -430,12 +347,17 @@ export default function CardDetailsModal({ cardId, onClose }: CardDetailsModalPr
               </div>
               <div className="flex gap-2 mt-2">
                 <Input
+                  id="new-comment"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   placeholder="Write a comment..."
                   className="bg-gray-800 border border-gray-700 text-white"
                 />
-                <Button onClick={handleAddComment} disabled={!newComment.trim()}>
+                <Button
+                  onClick={handleAddComment}
+                  disabled={!newComment.trim()}
+                  aria-label="Add comment"
+                >
                   Add
                 </Button>
               </div>
@@ -445,18 +367,21 @@ export default function CardDetailsModal({ cardId, onClose }: CardDetailsModalPr
 
         <DialogFooter>
           <Button
-            variant="outline"
-            className="bg-gray-800 text-gray-300 border border-gray-600 hover:text-white hover:border-green-400"
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-          <Button
             className="bg-green-500 hover:bg-green-600 text-black font-semibold"
-            onClick={handleSave}
+            onClick={onClose}
+            aria-label="Close card details"
           >
-            Save
+            Close
           </Button>
+          {canEdit && (
+            <Button
+              className="bg-green-700 hover:bg-green-800 text-white font-semibold"
+              onClick={handleSave}
+              aria-label="Save card changes"
+            >
+              Save
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
