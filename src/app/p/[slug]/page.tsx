@@ -1,5 +1,25 @@
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { FileText } from "lucide-react";
+
+// Category badge color mapping
+const categoryColor = (category?: string) => {
+  const colors: Record<string, string> = {
+    "Concept Art": "bg-blue-600/20 text-blue-300",
+    "Character Design": "bg-purple-600/20 text-purple-300",
+    "Environment Design": "bg-teal-600/20 text-teal-300",
+    "Storyboards": "bg-yellow-600/20 text-yellow-300",
+    "Script / Draft": "bg-orange-600/20 text-orange-300",
+    "Lore / Notes": "bg-amber-600/20 text-amber-300",
+    "Reference Material": "bg-gray-600/20 text-gray-300",
+    "Final Artwork": "bg-green-600/20 text-green-300",
+    "Cover / Poster": "bg-pink-600/20 text-pink-300",
+    "Audio / Voice": "bg-indigo-600/20 text-indigo-300",
+    "Video / Animation": "bg-red-600/20 text-red-300",
+    "Project Asset / Export": "bg-slate-600/20 text-slate-300",
+  };
+  return colors[category || ""] || "bg-gray-700/20 text-gray-300";
+};
 
 interface ProjectPageProps {
   params: { slug: string };
@@ -16,7 +36,7 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
 
   if (!project) notFound();
 
-  // ✅ Recent updates (latest 3, include author profile with FK join)
+  // ✅ Recent updates
   const { data: updates } = await supabase
     .from("project_updates")
     .select(
@@ -31,15 +51,23 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
     .order("created_at", { ascending: false })
     .limit(3);
 
-  // ✅ Recent files
+  // ✅ Enhanced Recent Files
   const { data: files } = await supabase
     .from("project_files")
-    .select("id, filename, uploader_id, created_at")
+    .select(`
+      id,
+      path,
+      file_name,
+      file_type,
+      file_category,
+      updated_at,
+      uploader:profiles(display_name, username)
+    `)
     .eq("project_id", project.id)
-    .order("created_at", { ascending: false })
+    .order("updated_at", { ascending: false })
     .limit(3);
 
-  // ✅ Members (two-step query, matches ProjectHeader)
+  // ✅ Members (two-step query)
   const { data: membersRaw } = await supabase
     .from("project_members")
     .select("user_id, role")
@@ -130,21 +158,70 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
         )}
       </div>
 
-      {/* Recent Files */}
+      {/* ✅ Enhanced Recent Files */}
       <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-lg p-6">
         <h2 className="text-lg font-semibold text-green-400 mb-3">
           Recent Files
         </h2>
         {files && files.length > 0 ? (
-          <ul className="space-y-2">
-            {files.map((f) => (
-              <li key={f.id} className="text-gray-300 text-sm">
-                <span className="text-gray-400">
-                  {new Date(f.created_at).toLocaleDateString()}
-                </span>{" "}
-                — {f.filename}
-              </li>
-            ))}
+          <ul className="space-y-3">
+            {files.map((f) => {
+              const uploader = Array.isArray(f.uploader)
+                ? f.uploader[0]
+                : f.uploader;
+
+              return (
+                <li
+                  key={f.id}
+                  className="flex items-center justify-between bg-gray-800/50 hover:bg-gray-800/90 rounded-lg px-3 py-2 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-gray-700 flex items-center justify-center overflow-hidden">
+                      {f.file_type === "image" ? (
+                        <img
+                          src={`${process.env
+                            .NEXT_PUBLIC_SUPABASE_URL!}/storage/v1/object/public/project-files/${f.path}`}
+                          alt={f.file_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <FileText className="w-4 h-4 text-green-400" />
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-gray-100 font-medium truncate max-w-[160px]">
+                        {f.file_name}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {uploader?.display_name ||
+                          uploader?.username ||
+                          "Unknown"}{" "}
+                        • {new Date(f.updated_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {f.file_category && (
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${categoryColor(
+                          f.file_category
+                        )}`}
+                      >
+                        {f.file_category}
+                      </span>
+                    )}
+                    <a
+                      href={`/p/${project.slug}/files`}
+                      className="text-xs text-green-400 hover:text-green-300"
+                    >
+                      View
+                    </a>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="text-gray-400">No files uploaded yet.</p>
