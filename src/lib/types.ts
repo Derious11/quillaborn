@@ -17,3 +17,9 @@ export type Profile = {
   early_access?: boolean;
   email: string | null;
 };
+
+export type DropResult = {
+  cardId: string;
+  boardListId: string;
+  position: number;
+};

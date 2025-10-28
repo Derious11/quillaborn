@@ -18,10 +18,12 @@ import type { Profile } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
+// ✅ Updated props
 type CardDetailsModalProps = {
   cardId: string | null;
   onClose: () => void;
-  role: "owner" | "admin" | "editor" | "viewer"; // 🔑 role passed in
+  role: "owner" | "admin" | "editor" | "viewer";
+  projectId: string | null; // ✅ added
 };
 
 type Card = {
@@ -85,7 +87,12 @@ function coerceProfile(input: any, fallbackId = "unknown", fallbackName = "Unkno
 }
 
 // ---- component -------------------------------------------------------------
-export default function CardDetailsModal({ cardId, onClose, role }: CardDetailsModalProps) {
+export default function CardDetailsModal({
+  cardId,
+  onClose,
+  role,
+  projectId, // ✅ new prop
+}: CardDetailsModalProps) {
   const { supabase } = useSupabase();
   const { toast } = useToast();
 
@@ -99,7 +106,7 @@ export default function CardDetailsModal({ cardId, onClose, role }: CardDetailsM
 
   const canEdit = role === "owner" || role === "admin" || role === "editor";
 
-  // --- fetch data ---
+  // --- fetch card + assignees + comments ---
   useEffect(() => {
     if (!cardId) return;
     let cancelled = false;
@@ -108,6 +115,7 @@ export default function CardDetailsModal({ cardId, onClose, role }: CardDetailsM
       try {
         setLoading(true);
 
+        // ✅ Card
         const { data: cardData } = await supabase
           .from("cards")
           .select("id, title, description, due_at, board_list_id")
@@ -115,6 +123,7 @@ export default function CardDetailsModal({ cardId, onClose, role }: CardDetailsM
           .single();
         if (!cancelled) setCard(cardData ?? null);
 
+        // ✅ Assignees
         const { data: rawAssignees } = await supabase
           .from("card_assignees")
           .select("user_id, profiles(*)")
@@ -129,6 +138,7 @@ export default function CardDetailsModal({ cardId, onClose, role }: CardDetailsM
           );
         }
 
+        // ✅ Comments
         const { data: rawComments } = await supabase
           .from("card_comments")
           .select("id, body, created_at, profiles(*)")
@@ -155,6 +165,40 @@ export default function CardDetailsModal({ cardId, onClose, role }: CardDetailsM
       cancelled = true;
     };
   }, [cardId, supabase]);
+
+  // ✅ NEW: Fetch project members for the assignee dropdown
+  useEffect(() => {
+    if (!projectId) return;
+    let cancelled = false;
+
+    async function fetchProjectMembers() {
+      const { data, error } = await supabase
+        .from("project_members")
+        .select(`
+          user_id,
+          profiles:profiles(*)
+        `)
+        .eq("project_id", projectId);
+
+      if (error) {
+        console.error("Failed to fetch members:", error);
+        return;
+      }
+
+      if (!cancelled) {
+        const mapped: Member[] = (data ?? []).map((row: any) => ({
+          userId: String(row.user_id),
+          profile: coerceProfile(row.profiles, row.user_id),
+        }));
+        setMembers(mapped);
+      }
+    }
+
+    fetchProjectMembers();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, supabase]);
 
   // --- actions ---
   async function handleSave() {
@@ -305,22 +349,26 @@ export default function CardDetailsModal({ cardId, onClose, role }: CardDetailsM
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="bg-gray-900 border border-gray-700 rounded-lg p-2 w-56">
-                    {members
-                      .filter((m) => !assignees.some((a) => a.userId === m.userId))
-                      .map((m) => (
-                        <button
-                          key={m.userId}
-                          type="button"
-                          className="w-full flex items-center gap-2 p-2 rounded hover:bg-gray-700"
-                          onClick={async () => {
-                            const ok = await handleAddAssignee(m.userId);
-                            if (ok) setAssigneePickerOpen(false);
-                          }}
-                        >
-                          <Avatar profile={m.profile} size={6} alt={m.profile.username} />
-                          <span className="text-sm">{m.profile.username}</span>
-                        </button>
-                      ))}
+                    {members.length === 0 ? (
+                      <p className="text-gray-400 text-sm p-2">No members found.</p>
+                    ) : (
+                      members
+                        .filter((m) => !assignees.some((a) => a.userId === m.userId))
+                        .map((m) => (
+                          <button
+                            key={m.userId}
+                            type="button"
+                            className="w-full flex items-center gap-2 p-2 rounded hover:bg-gray-700"
+                            onClick={async () => {
+                              const ok = await handleAddAssignee(m.userId);
+                              if (ok) setAssigneePickerOpen(false);
+                            }}
+                          >
+                            <Avatar profile={m.profile} size={6} alt={m.profile.username} />
+                            <span className="text-sm text-white">{m.profile.username}</span>
+                          </button>
+                        ))
+                    )}
                   </PopoverContent>
                 </Popover>
               )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,14 +26,9 @@ import {
 import SortableItem from "./SortableItem";
 import Droppable from "./Droppable";
 import CardDetailsModal from "./CardDetailsModal";
+import type { DropResult } from "@/lib/types"; // ✅ imported here
 
-type BoardList = {
-  id: string;
-  name: string;
-  position: number;
-  cards: CardItem[];
-};
-
+// -------------------- Types --------------------
 type CardItem = {
   id: string;
   title: string;
@@ -43,6 +38,21 @@ type CardItem = {
   position: number;
 };
 
+type CardDetailsModalProps = {
+  cardId: string | null;
+  onClose: () => void;
+  role: "owner" | "admin" | "editor" | "viewer";
+  projectId: string | null; // ✅ new
+};
+
+type BoardList = {
+  id: string;
+  name: string;
+  position: number;
+  cards: CardItem[];
+};
+
+// -------------------- Helpers --------------------
 function computeNewPosition(cards: CardItem[], destIndex: number): number {
   if (cards.length === 0) return 100;
   if (destIndex === 0) return cards[0].position / 2;
@@ -52,6 +62,7 @@ function computeNewPosition(cards: CardItem[], destIndex: number): number {
   return (prev + next) / 2;
 }
 
+// -------------------- Component --------------------
 export default function Board() {
   const { supabase } = useSupabase();
   const { slug } = useParams<{ slug: string }>();
@@ -73,8 +84,7 @@ export default function Board() {
 
   const canEdit = role === "owner" || role === "admin" || role === "editor";
 
-  const listIds = useMemo(() => new Set(lists.map((l) => l.id)), [lists]);
-
+  // -------------------- Fetch Lists & Cards --------------------
   useEffect(() => {
     async function fetchListsAndCards() {
       setLoading(true);
@@ -87,7 +97,6 @@ export default function Board() {
       if (!project) return setLoading(false);
       setProjectId(project.id);
 
-      // fetch board
       const { data: board } = await supabase
         .from("boards")
         .select("id")
@@ -120,7 +129,7 @@ export default function Board() {
     if (slug) fetchListsAndCards();
   }, [supabase, slug]);
 
-  // fetch current user role
+  // -------------------- Fetch Role --------------------
   useEffect(() => {
     async function fetchRole() {
       const {
@@ -140,13 +149,27 @@ export default function Board() {
     fetchRole();
   }, [supabase, projectId]);
 
-  // --- card helpers ---
-  function findCardLocation(cardId: string): { listIndex: number; cardIndex: number } | null {
-    for (let li = 0; li < lists.length; li++) {
-      const ci = lists[li].cards.findIndex((c) => c.id === cardId);
+  // -------------------- Card Helpers --------------------
+  function findCardLocation(
+    cardId: string,
+    data: BoardList[] = lists
+  ): { listIndex: number; cardIndex: number } | null {
+    for (let li = 0; li < data.length; li++) {
+      const ci = data[li].cards.findIndex((c) => c.id === cardId);
       if (ci !== -1) return { listIndex: li, cardIndex: ci };
     }
     return null;
+  }
+
+  function resolveDropLocation(
+    targetId: string,
+    data: BoardList[]
+  ): { listIndex: number; cardIndex: number } | null {
+    const listIndex = data.findIndex((list) => list.id === targetId);
+    if (listIndex !== -1) {
+      return { listIndex, cardIndex: data[listIndex].cards.length };
+    }
+    return findCardLocation(targetId, data);
   }
 
   function getCardById(cardId: string | null): CardItem | null {
@@ -158,6 +181,7 @@ export default function Board() {
     return null;
   }
 
+  // -------------------- Add Card --------------------
   async function handleAddCard(listId: string) {
     if (!canEdit) return;
     if (!newCardTitle.trim()) return;
@@ -197,6 +221,7 @@ export default function Board() {
     );
   }
 
+  // -------------------- Drag Handlers --------------------
   function handleDragStart(event: DragStartEvent) {
     if (!canEdit) return;
     setActiveCardId(String(event.active.id));
@@ -209,125 +234,109 @@ export default function Board() {
 
     const activeId = String(active.id);
     const overId = String(over.id);
-
-    const sourceLoc = findCardLocation(activeId);
-    if (!sourceLoc) return;
-
-    let destListIndex = -1;
-    let destIndex = -1;
-
-    if (listIds.has(overId)) {
-      destListIndex = lists.findIndex((l) => l.id === overId);
-      destIndex = lists[destListIndex].cards.length;
-    } else {
-      lists.forEach((l, li) => {
-        const ci = l.cards.findIndex((c) => c.id === overId);
-        if (ci !== -1) {
-          destListIndex = li;
-          destIndex = ci;
-        }
-      });
-    }
-    if (destListIndex === -1) return;
-
-    const { listIndex: sourceListIndex, cardIndex: sourceCardIndex } = sourceLoc;
-    if (sourceListIndex === destListIndex && sourceCardIndex === destIndex) return;
-
-    let insertIndex = destIndex;
-    if (sourceListIndex === destListIndex && sourceCardIndex < destIndex) insertIndex -= 1;
+    if (activeId === overId) return;
 
     setLists((prev) => {
+      const sourceLoc = findCardLocation(activeId, prev);
+      const destination = resolveDropLocation(overId, prev);
+      if (!sourceLoc || !destination) return prev;
+
+      const { listIndex: sourceListIndex, cardIndex: sourceCardIndex } = sourceLoc;
+      const { listIndex: destListIndex, cardIndex: destIndex } = destination;
+
+      if (sourceListIndex === destListIndex) return prev;
+
       const next = prev.map((l) => ({ ...l, cards: [...l.cards] }));
-      const [moved] = next[sourceListIndex].cards.splice(sourceCardIndex, 1);
-      next[destListIndex].cards.splice(insertIndex, 0, { ...moved, board_list_id: next[destListIndex].id });
+
+      const sourceList = next[sourceListIndex];
+      const destList = next[destListIndex];
+      if (!sourceList || !destList) return prev;
+
+      const [moved] = sourceList.cards.splice(sourceCardIndex, 1);
+      if (!moved) return prev;
+
+      const insertIndex = Math.min(destIndex, destList.cards.length);
+      destList.cards.splice(insertIndex, 0, moved);
+
       return next;
     });
   }
 
   async function handleDragEnd(event: DragEndEvent) {
-    if (!canEdit) return;
-    const { active, over } = event;
-    if (!over) {
-      setActiveCardId(null);
-      return;
-    }
-
-    const activeCardId = String(active.id);
-    const overId = String(over.id);
-
-    let sourceListIndex = -1;
-    let sourceCardIndex = -1;
-
-    lists.forEach((list, li) => {
-      const ci = list.cards.findIndex((c) => c.id === activeCardId);
-      if (ci !== -1) {
-        sourceListIndex = li;
-        sourceCardIndex = ci;
-      }
-    });
-    if (sourceListIndex === -1) {
-      setActiveCardId(null);
-      return;
-    }
-
-    let destListIndex = -1;
-    let destIndex = -1;
-
-    if (listIds.has(overId)) {
-      destListIndex = lists.findIndex((l) => l.id === overId);
-      destIndex = lists[destListIndex].cards.length;
-    } else {
-      lists.forEach((list, li) => {
-        const ci = list.cards.findIndex((c) => c.id === overId);
-        if (ci !== -1) {
-          destListIndex = li;
-          destIndex = ci;
-        }
-      });
-    }
-    if (destListIndex === -1) {
-      setActiveCardId(null);
-      return;
-    }
-
-    const source = lists[sourceListIndex];
-    const dest = lists[destListIndex];
-
-    if (
-      sourceListIndex === destListIndex &&
-      sourceCardIndex !== -1 &&
-      sourceCardIndex < destIndex
-    ) {
-      destIndex -= 1;
-    }
-    const [moved] = source.cards.splice(sourceCardIndex, 1);
-
-    const newPos = computeNewPosition(dest.cards, destIndex);
-    const updatedCard: CardItem = {
-      ...moved,
-      board_list_id: dest.id,
-      position: newPos,
-    };
-    dest.cards.splice(destIndex, 0, updatedCard);
-
-    setLists((prev) =>
-      prev.map((l, i) =>
-        i === sourceListIndex
-          ? { ...l, cards: source.cards }
-          : i === destListIndex
-          ? { ...l, cards: dest.cards }
-          : l
-      )
-    );
-
-    await supabase
-      .from("cards")
-      .update({ board_list_id: dest.id, position: newPos })
-      .eq("id", moved.id);
-
+  if (!canEdit) return;
+  const { active, over } = event;
+  if (!over) {
     setActiveCardId(null);
+    return;
   }
 
+  const activeCardId = String(active.id);
+  const overId = String(over.id);
+
+  // ✅ Explicitly typed variable outside the closure
+  let dropResult: DropResult | null = null;
+
+  setLists((prev): BoardList[] => {
+    const sourceLoc = findCardLocation(activeCardId, prev);
+    if (!sourceLoc) return prev;
+
+    const { listIndex: sourceListIndex, cardIndex: sourceCardIndex } = sourceLoc;
+    const destination = resolveDropLocation(overId, prev);
+    if (!destination) return prev;
+    const { listIndex: destListIndex, cardIndex: destIndex } = destination;
+
+    if (sourceListIndex === destListIndex && sourceCardIndex === destIndex) {
+      return prev;
+    }
+
+    // ✅ make a deep copy of lists
+    const next = prev.map((l) => ({ ...l, cards: [...l.cards] }));
+    const sourceList = next[sourceListIndex];
+    const destList = next[destListIndex];
+    if (!sourceList || !destList) return prev;
+
+    const [moved] = sourceList.cards.splice(sourceCardIndex, 1);
+    if (!moved) return prev;
+
+    const insertIndex = Math.min(destIndex, destList.cards.length);
+    const newPosition = computeNewPosition(destList.cards, insertIndex);
+
+    // ✅ Create updated card object
+    const updatedCard: CardItem = {
+      ...moved,
+      board_list_id: destList.id,
+      position: newPosition,
+    };
+
+    destList.cards.splice(insertIndex, 0, updatedCard);
+
+    // ✅ assign outside variable
+    dropResult = {
+      cardId: moved.id,
+      boardListId: destList.id,
+      position: newPosition,
+    };
+
+    // ✅ explicit return type
+    return next;
+  });
+
+  // ✅ Defensive check + use of non-null assertion
+  if (dropResult) {
+    const { cardId, boardListId, position } = dropResult;
+    await supabase
+      .from("cards")
+      .update({
+        board_list_id: boardListId,
+        position,
+      })
+      .eq("id", cardId);
+  }
+
+  setActiveCardId(null);
+}
+
+  // -------------------- Render --------------------
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -391,8 +400,8 @@ export default function Board() {
                     </Droppable>
                   </SortableContext>
 
-                  {canEdit && (
-                    activeList === list.id ? (
+                  {canEdit &&
+                    (activeList === list.id ? (
                       <div className="mt-4 flex gap-2">
                         <Input
                           value={newCardTitle}
@@ -418,8 +427,7 @@ export default function Board() {
                       >
                         + Add Card
                       </Button>
-                    )
-                  )}
+                    ))}
                 </CardContent>
               </Card>
             </div>
@@ -434,7 +442,9 @@ export default function Board() {
               <div className="bg-gray-800 border border-green-400/60 rounded-xl p-3 shadow-xl cursor-grabbing opacity-95">
                 <p className="font-medium text-white">{card.title}</p>
                 {card.description && (
-                  <p className="text-xs text-gray-300 mt-1">{card.description}</p>
+                  <p className="text-xs text-gray-300 mt-1">
+                    {card.description}
+                  </p>
                 )}
               </div>
             );
@@ -446,6 +456,7 @@ export default function Board() {
         cardId={selectedCard}
         onClose={() => setSelectedCard(null)}
         role={role}
+        projectId={projectId}
       />
     </div>
   );
