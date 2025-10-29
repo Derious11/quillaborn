@@ -1,7 +1,9 @@
-// components/profile/TimelineList.tsx
 "use client";
 
 import { useEffect, useState } from "react";
+import LikeButton from "@/components/features/social/interactions/LikeButton";
+import ReactionPicker from "@/components/features/social/interactions/ReactionPicker";
+import CommentSection from "@/components/features/social/interactions/CommentSection";
 
 type Post = {
   id: string;
@@ -11,6 +13,9 @@ type Post = {
   status: "active" | "hidden" | "deleted";
   profile_user_id: string;
   author_user_id: string;
+  like_count?: number;
+  comment_count?: number;
+  reaction_count?: number;
 };
 
 export default function TimelineList({
@@ -44,17 +49,16 @@ export default function TimelineList({
 
   if (loading) return <div className="opacity-60">Loading…</div>;
   if (!posts?.length) {
-    return (
-      <div className="opacity-60">
-        No posts yet.
-      </div>
-    );
+    return <div className="opacity-60">No posts yet.</div>;
   }
 
   return (
     <ul className="space-y-3">
       {posts.map((p) => (
-        <li key={p.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <li
+          key={p.id}
+          className="rounded-2xl border border-white/10 bg-white/5 p-4"
+        >
           <PostItem post={p} isOwner={isOwner} onChanged={load} />
         </li>
       ))}
@@ -113,10 +117,11 @@ function PostItem({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {!editing ? (
         <>
           <p className="whitespace-pre-wrap">{post.body}</p>
+
           <div className="text-xs opacity-70 flex items-center gap-2">
             <time dateTime={post.created_at}>{fmt(post.created_at)}</time>
             {post.updated_at !== post.created_at && <span>(edited)</span>}
@@ -139,10 +144,21 @@ function PostItem({
               </span>
             )}
           </div>
+
+          {/* --- Interaction Buttons --- */}
+          <div className="flex items-center gap-4 pt-1">
+            <LikeButton postId={post.id} initialCount={post.like_count ?? 0} />
+            <ReactionPicker postId={post.id} />
+          </div>
+
+          {/* --- Comments --- */}
+          <CommentSection postId={post.id} />
         </>
       ) : (
         <div className="space-y-2">
-          <label htmlFor={`edit-${post.id}`} className="sr-only">Edit post</label>
+          <label htmlFor={`edit-${post.id}`} className="sr-only">
+            Edit post
+          </label>
           <textarea
             id={`edit-${post.id}`}
             value={text}
@@ -155,7 +171,10 @@ function PostItem({
             <span className="ml-auto flex gap-3">
               <button
                 className="underline"
-                onClick={() => { setEditing(false); setText(post.body); }}
+                onClick={() => {
+                  setEditing(false);
+                  setText(post.body);
+                }}
                 aria-label="Cancel editing"
               >
                 Cancel

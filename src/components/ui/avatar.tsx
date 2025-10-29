@@ -4,7 +4,7 @@ import { getAvatarUrl } from "@/lib/avatar-utils";
 
 interface AvatarProps {
   src?: string;
-  profile?: Profile;
+  profile?: Partial<Profile> | null;
   alt?: string;
   size?: number;
 }
@@ -13,7 +13,7 @@ export function Avatar({ src, profile, alt = "", size = 12 }: AvatarProps) {
   const px = size * 4;
   
   // Determine the avatar source
-  const avatarSrc = src || (profile ? getAvatarUrl(profile) : '/avatars/presets/qb-avatar-00-quill.svg');
+  const avatarSrc = src || getAvatarUrl(profile);
   
   return (
     <Image
