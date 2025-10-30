@@ -1,9 +1,8 @@
 // src/app/dashboard/page.tsx
-
-import { redirect } from 'next/navigation';
-import { createSupabaseServerClient } from '@/lib/supabaseServer';
-import HomePage, { type CreativePulse } from '@/components/features/user/dashboard/HomePage';
-import type { Profile} from '@/lib/types';
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import HomePage, { type CreativePulse } from "@/components/features/user/dashboard/HomePage";
+import type { Profile } from "@/lib/types";
 
 type ProfilePostRow = {
   id: string;
@@ -11,37 +10,31 @@ type ProfilePostRow = {
   created_at: string;
   author_user_id: string;
   profile_user_id: string;
+  like_count: number;
+  comment_count: number;
+  reaction_count: number;
 };
 
 function calculateCreativeStreak(posts: { created_at: string }[]): number {
   if (!posts.length) return 0;
-
-  const uniqueDates = Array.from(
-    new Set(posts.map((post) => post.created_at.split('T')[0]))
-  );
-
+  const uniqueDates = Array.from(new Set(posts.map((p) => p.created_at.split("T")[0])));
   uniqueDates.sort((a, b) => (a > b ? -1 : a < b ? 1 : 0));
 
   let streak = 0;
-  let previousDate: Date | null = null;
+  let prev: Date | null = null;
 
-  for (const dateString of uniqueDates) {
-    const currentDate = new Date(`${dateString}T00:00:00Z`);
-
-    if (!previousDate) {
+  for (const d of uniqueDates) {
+    const cur = new Date(`${d}T00:00:00Z`);
+    if (!prev) {
       streak = 1;
-      previousDate = currentDate;
+      prev = cur;
       continue;
     }
-
-    const diffInDays = Math.round((previousDate.getTime() - currentDate.getTime()) / 86400000);
-
-    if (diffInDays === 1) {
-      streak += 1;
-      previousDate = currentDate;
-    } else {
-      break;
-    }
+    const diff = Math.round((prev.getTime() - cur.getTime()) / 86400000);
+    if (diff === 1) {
+      streak++;
+      prev = cur;
+    } else break;
   }
 
   return streak;
@@ -50,116 +43,123 @@ function calculateCreativeStreak(posts: { created_at: string }[]): number {
 export default async function DashboardPage() {
   const supabase = createSupabaseServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect('/login');
-  }
+  if (!user) redirect("/login");
 
-  // Fetch the user's profile with interests and role
+  // --- Profile ---------------------------------------------------
   const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
     .single<Profile>();
 
-  // Check if profile exists and onboarding is complete
-  if (!profile) {
-    // If no profile exists, redirect to onboarding
-    redirect('/username');
-  }
+  if (!profile || !profile.onboarding_complete) redirect("/username");
 
-  if (!profile.onboarding_complete) {
-    // If onboarding is not complete, redirect to onboarding
-    redirect('/username');
-  }
-
-  // Fetch user's interests
+  // --- Interests -------------------------------------------------
   const { data: userInterests } = await supabase
-    .from('profile_interests')
-    .select(`
-      interest_id,
-      interests (
-        id,
-        name
-      )
-    `)
-    .eq('profile_id', user.id);
+    .from("profile_interests")
+    .select(`interest_id, interests ( id, name )`)
+    .eq("profile_id", user.id);
 
-  // Fetch user's role
+  // --- Role ------------------------------------------------------
   const { data: userRole } = await supabase
-    .from('profile_roles')
-    .select(`
-      role_id,
-      roles (
-        id,
-        name
-      )
-    `)
-    .eq('profile_id', user.id)
+    .from("profile_roles")
+    .select(`role_id, roles ( id, name )`)
+    .eq("profile_id", user.id)
     .single();
 
-      const { data: projectIdRows } = await supabase.rpc('get_user_project_ids', {
+  // --- Projects count --------------------------------------------
+  const { data: projectIdRows } = await supabase.rpc("get_user_project_ids", {
     p_user: user.id,
   });
+  const projectsCount = Array.isArray(projectIdRows)
+    ? projectIdRows.length
+    : 0;
 
-  const projectsCount = Array.isArray(projectIdRows) ? projectIdRows.length : 0;
-
+  // --- Post count -----------------------------------------------
   const { count: postsCount } = await supabase
-    .from('profile_posts')
-    .select('id', { count: 'exact', head: true })
-    .eq('profile_user_id', user.id);
+    .from("profile_posts")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_user_id", user.id);
 
+  // --- Followers count ------------------------------------------
   const { data: followerCounts } = await supabase
-    .from('profile_follow_counts')
-    .select('follower_count')
-    .eq('profile_id', user.id)
+    .from("profile_follow_counts")
+    .select("follower_count")
+    .eq("profile_id", user.id)
     .maybeSingle();
 
+  // --- Creative streak ------------------------------------------
   const { data: streakSource } = await supabase
-    .from('profile_posts')
-    .select('created_at')
-    .eq('profile_user_id', user.id)
-    .order('created_at', { ascending: false })
+    .from("profile_posts")
+    .select("created_at")
+    .eq("profile_user_id", user.id)
+    .order("created_at", { ascending: false })
     .limit(30);
 
   const creativeStreakDays = calculateCreativeStreak(streakSource ?? []);
 
-  const { data: rawCommunityPosts } = await supabase
-    .from('profile_posts')
-    .select('id, body, created_at, author_user_id, profile_user_id')
-    .order('created_at', { ascending: false })
+  // --- Community feed -------------------------------------------
+  const { data: rawCommunityPosts, error } = await supabase
+    .from("profile_posts")
+    .select(`
+      id,
+      body,
+      created_at,
+      author_user_id,
+      profile_user_id,
+      like_count,
+      comment_count,
+      reaction_count
+    `)
+    .order("created_at", { ascending: false })
     .limit(12);
 
-  const filteredPosts = (rawCommunityPosts || []).filter((post) => post.author_user_id !== user.id);
-  const feedPosts: ProfilePostRow[] = (filteredPosts.length ? filteredPosts : rawCommunityPosts || []).slice(0, 6);
+  if (error) console.error("Feed query error:", error);
 
-  const authorIds = Array.from(new Set(feedPosts.map((post) => post.author_user_id)));
+  // Filter out the user's own posts and limit to 6 for feed
+  const filteredPosts =
+    (rawCommunityPosts || []).filter((p) => p.author_user_id !== user.id) ?? [];
+  const feedPosts: ProfilePostRow[] =
+    (filteredPosts.length ? filteredPosts : rawCommunityPosts || []).slice(0, 6);
 
+  // --- Author profiles ------------------------------------------
+  const authorIds = Array.from(new Set(feedPosts.map((p) => p.author_user_id)));
   const { data: authorProfiles } = authorIds.length
     ? await supabase
-      .from('profiles')
-      .select('id, display_name, username, avatar_key, avatar_url, avatar_kind')
-      .in('id', authorIds)
+        .from("profiles")
+        .select(
+          "id, display_name, username, avatar_key, avatar_url, avatar_kind"
+        )
+        .in("id", authorIds)
     : { data: [] };
 
-  const creativePulses: CreativePulse[] = feedPosts.map(({ profile_user_id: _profileId, ...post }) => ({
+  // --- Combine posts + authors ----------------------------------
+  const creativePulses: CreativePulse[] = feedPosts.map((post) => ({
     ...post,
-    author: (authorProfiles || []).find((profileRow) => profileRow.id === post.author_user_id) ?? null,
+    author:
+      (authorProfiles || []).find(
+        (p) => p.id === post.author_user_id
+      ) ?? null,
   }));
 
-  // Show the dashboard only if onboarding is complete
-  return <HomePage 
-    user={user}
-    profile={profile}
-    userInterests={userInterests || []}
-    userRole={userRole}
-        stats={{
-      creativeStreakDays,
-      projectsCount,
-      postsCount: postsCount ?? 0,
-      followersCount: followerCounts?.follower_count ?? 0,
-    }}
-    creativePulses={creativePulses}
-  />;
+  // --- Render HomePage ------------------------------------------
+  return (
+    <HomePage
+      user={user}
+      profile={profile}
+      userInterests={userInterests || []}
+      userRole={userRole}
+      stats={{
+        creativeStreakDays,
+        projectsCount,
+        postsCount: postsCount ?? 0,
+        followersCount: followerCounts?.follower_count ?? 0,
+      }}
+      creativePulses={creativePulses}
+    />
+  );
 }
