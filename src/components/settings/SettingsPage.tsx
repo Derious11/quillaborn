@@ -34,6 +34,13 @@ type SettingsPageProps = {
 
 type SettingsSection = 'profile' | 'privacy' | 'notifications' | 'preferences' | 'billing';
 
+type NotificationSettingsState = {
+  enable_push: boolean;
+  enable_daily_summary: boolean;
+};
+
+type NotificationSettingsKey = keyof NotificationSettingsState;
+
 export default function SettingsPage({
   user: propUser,
   profile: propProfile,
@@ -44,6 +51,15 @@ export default function SettingsPage({
 }: SettingsPageProps) {
   const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
   const router = useRouter();
+  const { supabase, user: supabaseUser } = useSupabase();
+  const { toast } = useToast();
+
+  const [notificationSettings, setNotificationSettings] = useState<{ enable_push: boolean; enable_daily_summary: boolean }>({
+    enable_push: false,
+    enable_daily_summary: false,
+  });
+  const [notificationLoading, setNotificationLoading] = useState(true);
+  const [notificationSaving, setNotificationSaving] = useState(false);
 
   const sections = [
     { id: 'profile' as const, label: 'Profile', icon: UserIcon },
@@ -52,6 +68,83 @@ export default function SettingsPage({
     { id: 'preferences' as const, label: 'Preferences', icon: Settings },
     { id: 'billing' as const, label: 'Billing', icon: CreditCard },
   ];
+
+    useEffect(() => {
+    if (!supabaseUser) {
+      setNotificationSettings({ enable_push: false, enable_daily_summary: false });
+      setNotificationLoading(false);
+      return;
+    }
+
+    let isActive = true;
+
+    const loadSettings = async () => {
+      setNotificationLoading(true);
+
+      const { data, error } = await supabase
+        .from('notification_settings')
+        .select('enable_push, enable_daily_summary')
+        .eq('user_id', supabaseUser.id)
+        .maybeSingle();
+
+      if (!isActive) return;
+
+      if (error) {
+        console.error(error);
+        toast({ title: 'Error loading settings', description: error.message, variant: 'destructive' });
+        setNotificationSettings({ enable_push: false, enable_daily_summary: false });
+      } else if (data) {
+        setNotificationSettings({
+          enable_push: data.enable_push ?? false,
+          enable_daily_summary: data.enable_daily_summary ?? false,
+        });
+      } else {
+        setNotificationSettings({ enable_push: false, enable_daily_summary: false });
+      }
+
+      setNotificationLoading(false);
+    };
+
+    loadSettings();
+
+    return () => {
+      isActive = false;
+    };
+  }, [supabase, supabaseUser, toast]);
+
+  usePushNotifications(!notificationLoading && notificationSettings.enable_push);
+
+  const updateNotificationSetting = async (key: 'enable_push' | 'enable_daily_summary', value: boolean) => {
+    if (!supabaseUser) return;
+
+    setNotificationSaving(true);
+
+    const updatedSettings = {
+      enable_push: key === 'enable_push' ? value : notificationSettings.enable_push,
+      enable_daily_summary: key === 'enable_daily_summary' ? value : notificationSettings.enable_daily_summary,
+    };
+
+    const { error } = await supabase
+      .from('notification_settings')
+      .upsert({
+        user_id: supabaseUser.id,
+        ...updatedSettings,
+      }, { onConflict: 'user_id' });
+
+    setNotificationSaving(false);
+
+    if (error) {
+      console.error(error);
+      toast({ title: 'Error updating setting', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    setNotificationSettings(updatedSettings);
+    toast({
+      title: 'Updated',
+      description: `Saved your ${key === 'enable_push' ? 'push' : 'daily email'} preference.`,
+    });
+  };
 
   const renderSection = () => {
     switch (activeSection) {
@@ -69,7 +162,14 @@ export default function SettingsPage({
       case 'privacy':
         return <PrivacySection />;
       case 'notifications':
-        return <NotificationsSection />;
+        return (
+          <NotificationsSection
+            settings={notificationSettings}
+            loading={notificationLoading}
+            saving={notificationSaving}
+            onUpdateSetting={updateNotificationSetting}
+          />
+        );
       case 'preferences':
         return <PreferencesSection />;
       case 'billing':
@@ -641,59 +741,15 @@ function PrivacySection() {
   );
 }
 
-function NotificationsSection() {
-  const { supabase, user } = useSupabase();
-  const { toast } = useToast();
+type NotificationsSectionProps = {
+  settings: NotificationSettingsState;
+  loading: boolean;
+  saving: boolean;
+  onUpdateSetting: (key: NotificationSettingsKey, value: boolean) => void;
+};
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState<{ enable_push: boolean; enable_daily_summary: boolean } | null>(null);
-
-  usePushNotifications(settings?.enable_push === true);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const loadSettings = async () => {
-      const { data, error } = await supabase
-        .from('notification_settings')
-        .select('enable_push, enable_daily_summary')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) {
-        console.error(error);
-        toast({ title: 'Error loading settings', description: error.message, variant: 'destructive' });
-      } else {
-        setSettings(data);
-      }
-
-      setLoading(false);
-    };
-
-    loadSettings();
-  }, [user]);
-
-  const updateSetting = async (key: 'enable_push' | 'enable_daily_summary', value: boolean) => {
-    if (!user) return;
-    setSaving(true);
-
-    const { error } = await supabase
-      .from('notification_settings')
-      .update({ [key]: value })
-      .eq('user_id', user.id);
-
-    setSaving(false);
-
-    if (error) {
-      toast({ title: 'Error updating setting', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Updated', description: `Saved your ${key === 'enable_push' ? 'push' : 'daily email'} preference.` });
-      setSettings((prev) => prev ? { ...prev, [key]: value } : prev);
-    }
-  };
-
-  if (loading || !settings) return <p className="text-gray-400 text-sm">Loading notification settings...</p>;
+function NotificationsSection({ settings, loading, saving, onUpdateSetting }: NotificationsSectionProps) {
+  if (loading) return <p className="text-gray-400 text-sm">Loading notification settings...</p>;
 
   return (
     <div className="space-y-6">
@@ -711,7 +767,7 @@ function NotificationsSection() {
             <Switch
               checked={settings.enable_daily_summary}
               disabled={saving}
-              onCheckedChange={(val) => updateSetting('enable_daily_summary', val)}
+              onCheckedChange={(val) => onUpdateSetting('enable_daily_summary', val)}
             />
           </div>
           <div className="border-t border-gray-700 pt-4">
@@ -723,7 +779,7 @@ function NotificationsSection() {
               <Switch
                 checked={settings.enable_push}
                 disabled={saving}
-                onCheckedChange={(val) => updateSetting('enable_push', val)}
+                onCheckedChange={(val) => onUpdateSetting('enable_push', val)}
               />
             </div>
           </div>
