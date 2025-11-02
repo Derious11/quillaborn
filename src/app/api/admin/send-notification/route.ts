@@ -1,3 +1,6 @@
+// src/app/api/admin/send-notification/route.ts
+
+export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
 import webpush from "web-push";
