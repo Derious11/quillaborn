@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     .from("push_subscriptions")
     .select("subscription");
 
-  if (subError || !subs || subs.length === 0) {
+  if (subError || !Array.isArray(subs) || subs.length === 0) {
     return NextResponse.json({ error: "No subscriptions found" }, { status: 404 });
   }
 
