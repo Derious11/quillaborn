@@ -749,10 +749,147 @@ type NotificationsSectionProps = {
 };
 
 function NotificationsSection({ settings, loading, saving, onUpdateSetting }: NotificationsSectionProps) {
+  const { supabase, user } = useSupabase();
+  const { toast } = useToast();
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [loadingSubs, setLoadingSubs] = useState(true);
+  const [unsubscribing, setUnsubscribing] = useState<string | null>(null);
+  const [subscribing, setSubscribing] = useState(false);
+
+  const currentUA = typeof window !== 'undefined' ? navigator.userAgent : '';
+
+  useEffect(() => {
+    if (!user) {
+      setLoadingSubs(false);
+      return;
+    }
+
+    const loadSubs = async () => {
+      setLoadingSubs(true);
+      const { data, error } = await supabase
+        .from('push_subscriptions')
+        .select('id, user_agent, created_at, subscription')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error(error);
+        toast({
+          title: 'Error loading subscriptions',
+          description: error.message,
+          variant: 'destructive',
+        });
+        setSubscriptions([]);
+      } else {
+        setSubscriptions(data || []);
+      }
+
+      setLoadingSubs(false);
+    };
+
+    loadSubs();
+  }, [supabase, user, toast]);
+
+  const parseDeviceName = (ua: string | null) => {
+    if (!ua) return 'Unknown Device';
+    if (ua.includes('Android')) return 'Android Device';
+    if (ua.includes('iPhone')) return 'iPhone';
+    if (ua.includes('iPad')) return 'iPad';
+    if (ua.includes('Macintosh')) return 'Mac';
+    if (ua.includes('Windows')) return 'Windows PC';
+    if (ua.includes('Linux')) return 'Linux Machine';
+    return ua.split(' ')[0];
+  };
+
+  const isThisDevice = (ua: string | null) => {
+    if (!ua || !currentUA) return false;
+    return ua === currentUA;
+  };
+
+  const thisDeviceSubscribed = subscriptions.some((s) => isThisDevice(s.user_agent));
+
+  const unsubscribeDevice = async (id: string) => {
+    if (!user) return;
+    setUnsubscribing(id);
+
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    setUnsubscribing(null);
+
+    if (error) {
+      toast({
+        title: 'Unsubscribe failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Unsubscribed',
+        description: 'This device has been unsubscribed from push notifications.',
+      });
+      setSubscriptions((prev) => prev.filter((s) => s.id !== id));
+    }
+  };
+
+  const subscribeThisDevice = async () => {
+    if (!user) return;
+
+    try {
+      setSubscribing(true);
+
+      // 🔔 Request permission and create subscription via the service worker
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, // must be set in your .env
+      });
+
+      const { error } = await supabase.from('push_subscriptions').insert({
+        user_id: user.id,
+        subscription,
+        user_agent: currentUA,
+      });
+
+      if (error) {
+        console.error(error);
+        toast({
+          title: 'Subscription failed',
+          description: error.message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Device subscribed', description: 'This device will now receive push notifications.' });
+        setSubscriptions((prev) => [
+          {
+            id: crypto.randomUUID(),
+            user_agent: currentUA,
+            created_at: new Date().toISOString(),
+            subscription,
+          },
+          ...prev,
+        ]);
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: 'Permission denied',
+        description: 'You may need to allow notifications in your browser settings.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
   if (loading) return <p className="text-gray-400 text-sm">Loading notification settings...</p>;
 
   return (
     <div className="space-y-6">
+      {/* Notification Toggles */}
       <div className="bg-gray-800 rounded-lg p-6">
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-white mb-2">Notifications</h3>
@@ -770,6 +907,7 @@ function NotificationsSection({ settings, loading, saving, onUpdateSetting }: No
               onCheckedChange={(val) => onUpdateSetting('enable_daily_summary', val)}
             />
           </div>
+
           <div className="border-t border-gray-700 pt-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
@@ -784,6 +922,67 @@ function NotificationsSection({ settings, loading, saving, onUpdateSetting }: No
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Subscribed Devices */}
+      <div className="bg-gray-800 rounded-lg p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-2">Registered Devices</h3>
+            <p className="text-gray-400 text-sm">Manage where you receive push notifications.</p>
+          </div>
+
+          {!thisDeviceSubscribed && (
+            <Button
+              onClick={subscribeThisDevice}
+              disabled={subscribing}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {subscribing ? 'Subscribing...' : 'Subscribe This Device'}
+            </Button>
+          )}
+        </div>
+
+        {loadingSubs ? (
+          <p className="text-gray-400 text-sm">Loading devices...</p>
+        ) : subscriptions.length === 0 ? (
+          <p className="text-gray-400 text-sm">No devices currently subscribed.</p>
+        ) : (
+          <ul className="divide-y divide-gray-700">
+            {subscriptions.map((sub) => (
+              <li key={sub.id} className="flex items-center justify-between py-3">
+                <div className="flex flex-col">
+                  <span className="text-white font-medium">
+                    {parseDeviceName(sub.user_agent)}
+                    {isThisDevice(sub.user_agent) && (
+                      <span className="ml-2 text-xs text-green-400 bg-green-400/20 px-2 py-0.5 rounded-full">
+                        This Device
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-sm text-gray-400">
+                    Subscribed: {new Date(sub.created_at).toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="w-3 h-3 rounded-full bg-green-500" title="Subscribed" />
+                  {!isThisDevice(sub.user_agent) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={unsubscribing === sub.id}
+                      onClick={() => unsubscribeDevice(sub.id)}
+                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                    >
+                      {unsubscribing === sub.id ? 'Unsubscribing...' : 'Unsubscribe'}
+                    </Button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
