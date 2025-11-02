@@ -1,0 +1,21 @@
+{
+  "name": "Quillaborn",
+  "short_name": "Quillaborn",
+  "icons": [
+    {
+      "src": "/logo-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/badge-72.png",
+      "type": "image/png",
+      "sizes": "72x72",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#14532d",
+  "background_color": "#ffffff"
+}

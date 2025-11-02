@@ -12,6 +12,8 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useSupabase } from '@/components/providers/SupabaseProvider';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+
 
 type Profile = {
   id: string;
@@ -640,6 +642,59 @@ function PrivacySection() {
 }
 
 function NotificationsSection() {
+  const { supabase, user } = useSupabase();
+  const { toast } = useToast();
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<{ enable_push: boolean; enable_daily_summary: boolean } | null>(null);
+
+  usePushNotifications(settings?.enable_push === true);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadSettings = async () => {
+      const { data, error } = await supabase
+        .from('notification_settings')
+        .select('enable_push, enable_daily_summary')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        console.error(error);
+        toast({ title: 'Error loading settings', description: error.message, variant: 'destructive' });
+      } else {
+        setSettings(data);
+      }
+
+      setLoading(false);
+    };
+
+    loadSettings();
+  }, [user]);
+
+  const updateSetting = async (key: 'enable_push' | 'enable_daily_summary', value: boolean) => {
+    if (!user) return;
+    setSaving(true);
+
+    const { error } = await supabase
+      .from('notification_settings')
+      .update({ [key]: value })
+      .eq('user_id', user.id);
+
+    setSaving(false);
+
+    if (error) {
+      toast({ title: 'Error updating setting', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Updated', description: `Saved your ${key === 'enable_push' ? 'push' : 'daily email'} preference.` });
+      setSettings((prev) => prev ? { ...prev, [key]: value } : prev);
+    }
+  };
+
+  if (loading || !settings) return <p className="text-gray-400 text-sm">Loading notification settings...</p>;
+
   return (
     <div className="space-y-6">
       <div className="bg-gray-800 rounded-lg p-6">
@@ -650,22 +705,26 @@ function NotificationsSection() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="text-gray-300">Email Notifications</Label>
-              <p className="text-sm text-gray-400">
-                Receive notifications via email
-              </p>
+              <Label className="text-gray-300">Daily Summary Email</Label>
+              <p className="text-sm text-gray-400">Get a daily email summary of activity</p>
             </div>
-            <Switch />
+            <Switch
+              checked={settings.enable_daily_summary}
+              disabled={saving}
+              onCheckedChange={(val) => updateSetting('enable_daily_summary', val)}
+            />
           </div>
           <div className="border-t border-gray-700 pt-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label className="text-gray-300">Push Notifications</Label>
-                <p className="text-sm text-gray-400">
-                  Receive push notifications in your browser
-                </p>
+                <p className="text-sm text-gray-400">Receive push notifications in your browser</p>
               </div>
-              <Switch />
+              <Switch
+                checked={settings.enable_push}
+                disabled={saving}
+                onCheckedChange={(val) => updateSetting('enable_push', val)}
+              />
             </div>
           </div>
         </div>
