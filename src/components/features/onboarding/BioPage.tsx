@@ -8,7 +8,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import LegalModal from "@/components/ui/LegalModal";
 
-interface LegalDocument {
+interface OnboardingLegalDocument {
   id: number;
   document_type: string;
   version: string;
@@ -41,7 +41,7 @@ export default function BioPage({ user, pronounsList }: BioPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [agreeToPrivacy, setAgreeToPrivacy] = useState(false);
-  const [modalDocument, setModalDocument] = useState<LegalDocument | null>(null);
+  const [modalDocument, setModalDocument] = useState<OnboardingLegalDocument | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loadingDocument, setLoadingDocument] = useState(false);
   const [termsVersion, setTermsVersion] = useState<string>("1.0");
@@ -71,7 +71,16 @@ export default function BioPage({ user, pronounsList }: BioPageProps) {
           setError("Failed to load document. Please try again.");
         }
       } else if (data) {
-        setModalDocument(data);
+        const normalizedDocument: OnboardingLegalDocument = {
+          id: data.id,
+          document_type: data.document_type,
+          version: data.version,
+          title: data.title,
+          content: data.content,
+          is_latest: Boolean(data.is_latest),
+          published_at: data.published_at,
+        };
+        setModalDocument(normalizedDocument);
         setIsModalOpen(true);
         
         // Store the version for use in onboarding completion
@@ -115,8 +124,8 @@ export default function BioPage({ user, pronounsList }: BioPageProps) {
       // Call the RPC function with the correct parameters
       const { error: rpcError } = await supabase
         .rpc('complete_onboarding', {
-          input_bio: bio.trim() || null,
-          input_pronoun_id: pronounsValue,
+          input_bio: bio.trim(),
+          input_pronoun_id: (pronounsValue ?? null) as unknown as number,
           input_terms_version: termsVersion,
           input_privacy_version: privacyVersion
         });
@@ -307,3 +316,5 @@ export default function BioPage({ user, pronounsList }: BioPageProps) {
     </div>
   );
 } 
+
+

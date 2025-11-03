@@ -13,10 +13,10 @@ type Project = {
   id: string;
   slug: string;
   name: string;
-  description?: string;
-  summary?: string;
-  archived?: boolean;
-  created_at?: string;
+  description?: string | null;
+  summary?: string | null;
+  status: "active" | "archived";
+  created_at?: string | null;
 };
 
 type ProjectIdRow = {
@@ -65,8 +65,19 @@ export default function ProjectsPage() {
         .in("id", projectIds)
         .order("created_at", { ascending: false });
 
-      const active = (projectData || []).filter((p) => !p.archived);
-      const archived = (projectData || []).filter((p) => p.archived);
+      const projects: Project[] =
+        (projectData || []).map((p: any) => ({
+          id: p.id,
+          slug: p.slug,
+          name: p.name,
+          description: "description" in p ? p.description ?? null : null,
+          summary: p.summary ?? null,
+          status: p.status === "archived" ? "archived" : "active",
+          created_at: p.created_at ?? null,
+        })) ?? [];
+
+      const active = projects.filter((p) => p.status !== "archived");
+      const archived = projects.filter((p) => p.status === "archived");
 
       setActiveProjects(active);
       setArchivedProjects(archived);
@@ -78,7 +89,7 @@ export default function ProjectsPage() {
         .in("project_id", projectIds);
 
       const userIds = Array.from(new Set((membersRaw || []).map((m) => m.user_id)));
-      let profiles: { id: string; display_name?: string; username?: string; avatar_key?: string }[] = [];
+      let profiles: { id: string; display_name?: string | null; username?: string | null; avatar_key?: string | null }[] = [];
       if (userIds.length > 0) {
         const { data: profs } = await supabase
           .from("profiles")
@@ -93,7 +104,7 @@ export default function ProjectsPage() {
         const member = {
           id: m.user_id as string,
           name: (profile?.display_name || profile?.username || "Unknown") as string,
-          avatar_key: profile?.avatar_key,
+          avatar_key: profile?.avatar_key ?? undefined,
           role: m.role as string | undefined,
         };
         if (!map[m.project_id]) map[m.project_id] = [];
@@ -254,3 +265,4 @@ export default function ProjectsPage() {
     </div>
   );
 }
+

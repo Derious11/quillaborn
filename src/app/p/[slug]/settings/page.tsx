@@ -6,6 +6,9 @@ import { useSupabase } from "@/components/providers/SupabaseProvider";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 
+type ProjectStatus = "active" | "archived";
+type ProjectRole = "owner" | "admin" | "editor" | "viewer";
+
 interface Member {
   profiles: {
     id: string;
@@ -13,7 +16,7 @@ interface Member {
     username: string;
     avatar_key?: string;
   } | null;
-  role: string;
+  role: ProjectRole;
   status: string;
   title?: string | null;
 }
@@ -21,6 +24,13 @@ interface Member {
 interface TitleOption {
   id: string;
   name: string;
+}
+
+function normalizeRole(role: string | null | undefined): ProjectRole {
+  if (role === "owner" || role === "admin" || role === "editor" || role === "viewer") {
+    return role;
+  }
+  return "viewer";
 }
 
 function resolveAvatar(avatar_key?: string) {
@@ -42,7 +52,7 @@ export default function ProjectSettings() {
 
   const [name, setName] = useState("");
   const [summary, setSummary] = useState("");
-  const [status, setStatus] = useState("active");
+  const [status, setStatus] = useState<ProjectStatus>("active");
 
   const [members, setMembers] = useState<Member[]>([]);
   const [membersLoading, setMembersLoading] = useState(true);
@@ -69,7 +79,7 @@ export default function ProjectSettings() {
       setProject(data);
       setName(data.name || "");
       setSummary(data.summary || "");
-      setStatus(data.status || "active");
+      setStatus(data.status === "archived" ? "archived" : "active");
       setLoading(false);
 
       loadMembers(data.id);
@@ -102,9 +112,9 @@ export default function ProjectSettings() {
         currentUser?.role === "owner" || currentUser?.role === "admin"
       );
 
-      const activeMembers =
-        (memberData || []).map((row: any) => ({
-          role: row.role,
+      const activeMembers: Member[] =
+        (memberData || []).map((row: any): Member => ({
+          role: normalizeRole(row.role),
           title: row.title,
           status: "active",
           profiles: row.profiles ? row.profiles : null,
@@ -127,12 +137,12 @@ export default function ProjectSettings() {
         )
         .eq("project_id", projectId);
 
-      const invites =
+      const invites: Member[] =
         (inviteData || [])
           .filter((row: any) => row.status !== "accepted")
-          .map((row: any) => ({
+          .map((row: any): Member => ({
             role: "editor",
-            status: row.status,
+            status: row.status ?? "pending",
             profiles: row.profiles ? row.profiles : null,
           })) ?? [];
 
@@ -206,7 +216,7 @@ export default function ProjectSettings() {
     }
   }
 
-  async function updateRole(userId: string, newRole: string) {
+  async function updateRole(userId: string, newRole: ProjectRole) {
     if (!project) return;
     const { error } = await supabase
       .from("project_members")
@@ -313,7 +323,9 @@ export default function ProjectSettings() {
               <select
                 id="project-status"
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
+                onChange={(e) =>
+                  setStatus(e.target.value === "archived" ? "archived" : "active")
+                }
                 className="mt-1 w-full rounded-lg bg-gray-800 border border-gray-700 text-white px-3 py-2"
               >
                 <option value="active">Active</option>
@@ -385,7 +397,10 @@ export default function ProjectSettings() {
                             id={`role-${m.profiles.id}`}
                             value={m.role}
                             onChange={(e) =>
-                              updateRole(m.profiles!.id, e.target.value)
+                              updateRole(
+                                m.profiles!.id,
+                                normalizeRole(e.target.value)
+                              )
                             }
                             className="bg-gray-700 text-white text-sm rounded px-2 py-1"
                           >

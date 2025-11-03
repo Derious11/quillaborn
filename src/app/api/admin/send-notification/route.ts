@@ -3,7 +3,7 @@
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabaseServer";
-import webpush from "web-push";
+import webpush, { type PushSubscription } from "web-push";
 
 // Setup VAPID
 webpush.setVapidDetails(
@@ -47,10 +47,19 @@ export async function POST(req: Request) {
 
   const payload = JSON.stringify({ title, body: message, url });
 
+  const subscriptions = (subs ?? []).flatMap((row) => {
+    const subscription = row.subscription;
+    return isPushSubscription(subscription) ? [subscription] : [];
+  });
+
+  if (subscriptions.length === 0) {
+    return NextResponse.json({ error: "No valid subscriptions found" }, { status: 404 });
+  }
+
   // Send push
   const results = await Promise.allSettled(
-    subs.map((s) =>
-      webpush.sendNotification(s.subscription, payload).catch((err: unknown) => err)
+    subscriptions.map((subscription) =>
+      webpush.sendNotification(subscription, payload).catch((err: unknown) => err)
     )
   );
 
@@ -60,4 +69,22 @@ export async function POST(req: Request) {
   return NextResponse.json({
     message: `Sent to ${successCount} users. ${failedCount} failed.`,
   });
+}
+
+function isPushSubscription(candidate: unknown): candidate is PushSubscription {
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+    return false;
+  }
+
+  const maybe = candidate as {
+    endpoint?: unknown;
+    keys?: unknown;
+  };
+
+  if (typeof maybe.endpoint !== "string") return false;
+  if (!maybe.keys || typeof maybe.keys !== "object" || Array.isArray(maybe.keys)) return false;
+
+  const keys = maybe.keys as { p256dh?: unknown; auth?: unknown };
+
+  return typeof keys.p256dh === "string" && typeof keys.auth === "string";
 }

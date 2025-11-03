@@ -32,7 +32,7 @@ import type { DropResult } from "@/lib/types"; // ✅ imported here
 type CardItem = {
   id: string;
   title: string;
-  description?: string;
+  description?: string | null;
   created_by: string;
   board_list_id: string;
   position: number;
@@ -119,7 +119,17 @@ export default function Board() {
           .eq("board_list_id", list.id)
           .order("position");
 
-        listsWithCards.push({ ...list, cards: cardData || [] });
+        const cards: CardItem[] =
+          (cardData || []).map((card: any) => ({
+            id: card.id,
+            title: card.title,
+            description: card.description ?? null,
+            created_by: card.created_by,
+            board_list_id: card.board_list_id,
+            position: card.position,
+          }));
+
+        listsWithCards.push({ ...list, cards });
       }
 
       setLists(listsWithCards);
@@ -189,6 +199,7 @@ export default function Board() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    if (!user?.id) return;
 
     const targetList = lists.find((l) => l.id === listId);
     if (!targetList) return;
@@ -202,7 +213,7 @@ export default function Board() {
       {
         board_list_id: listId,
         title: newCardTitle,
-        created_by: user?.id,
+        created_by: user.id,
         position: nextPos,
       },
     ]);
@@ -216,8 +227,18 @@ export default function Board() {
       .eq("board_list_id", listId)
       .order("position");
 
+    const cards: CardItem[] =
+      (cardData || []).map((card: any) => ({
+        id: card.id,
+        title: card.title,
+        description: card.description ?? null,
+        created_by: card.created_by,
+        board_list_id: card.board_list_id,
+        position: card.position,
+      }));
+
     setLists((prev) =>
-      prev.map((l) => (l.id === listId ? { ...l, cards: cardData || [] } : l))
+      prev.map((l) => (l.id === listId ? { ...l, cards } : l))
     );
   }
 
@@ -461,3 +482,7 @@ export default function Board() {
     </div>
   );
 }
+
+
+
+

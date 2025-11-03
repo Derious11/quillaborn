@@ -10,7 +10,7 @@ import Footer from "@/components/layout/Footer";
 interface Role {
   id: number;
   name: string;
-  created_at: string;
+  created_at: string | null;
 }
 
 interface RolePageProps {

@@ -7,14 +7,18 @@ export async function createProject(formData: FormData) {
   const supabase = createSupabaseServerClient();
 
   const name = formData.get("name") as string;
-  const summary = formData.get("summary") as string | null;
+  const summaryValue = formData.get("summary");
+  const summary =
+    typeof summaryValue === "string" && summaryValue.trim().length > 0
+      ? summaryValue
+      : null;
 
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
   const { data, error } = await supabase.rpc("create_project_secure", {
     p_name: name,
     p_slug: slug,
-    p_summary: summary,
+    p_summary: summary ?? undefined,
   });
 
   if (error) {

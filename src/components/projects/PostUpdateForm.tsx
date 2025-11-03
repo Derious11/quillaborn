@@ -21,13 +21,22 @@ export default function PostUpdateForm({ projectId, onSubmitted }: PostUpdateFor
     e.preventDefault();
     setLoading(true);
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("project_updates")
       .insert({
         project_id: projectId,
-        title,
+        author_id: user.id,
+        title: title.trim(),
         body_md: body,
-        attachments,
+        attachments: attachments.length ? attachments : null,
       })
       .select(
         `

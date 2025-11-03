@@ -40,6 +40,7 @@ export default async function Page({ searchParams }: { searchParams?: { q?: stri
 
   const badgeMap: Record<string, any[]> = {};
   (userBadges ?? []).forEach((ub) => {
+    if (!ub.user_id || !ub.badges) return;
     if (!badgeMap[ub.user_id]) badgeMap[ub.user_id] = [];
     badgeMap[ub.user_id].push(ub.badges);
   });

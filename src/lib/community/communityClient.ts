@@ -77,7 +77,14 @@ export function useCommunityData(categorySlug?: string) {
         console.warn("[Community] No categories found");
         setCategories([]);
       } else {
-        setCategories(cats);
+        const normalizedCategories: CommunityCategory[] = cats.map((cat: any) => ({
+          id: String(cat.id),
+          name: String(cat.name),
+          slug: String(cat.slug),
+          description: cat.description ?? null,
+          position: typeof cat.position === "number" ? cat.position : 0,
+        }));
+        setCategories(normalizedCategories);
       }
 
       // ---- Fetch Threads ----
@@ -99,8 +106,15 @@ export function useCommunityData(categorySlug?: string) {
       const { data: ths, error: thErr } = await query;
       if (thErr) throw thErr;
 
-      const normalized = (ths || []).map((t: any) => ({
-        ...t,
+      const normalized: CommunityThread[] = (ths || []).map((t: any) => ({
+        id: String(t.id),
+        category_id: String(t.category_id),
+        user_id: String(t.user_id),
+        title: String(t.title),
+        body_md: String(t.body_md ?? ""),
+        created_at: String(t.created_at ?? new Date().toISOString()),
+        updated_at: String(t.updated_at ?? t.created_at ?? new Date().toISOString()),
+        likes: Number(t.likes ?? 0),
         profiles: Array.isArray(t.profiles) ? t.profiles[0] : t.profiles,
       }));
 
@@ -129,7 +143,20 @@ export function useCommunityData(categorySlug?: string) {
           setThreads((prev) => {
             const existing = prev.find((t) => t.id === payload.new.id);
             if (existing) return prev;
-            return [payload.new as any, ...prev];
+            const newThread: CommunityThread = {
+              id: String(payload.new.id),
+              category_id: String(payload.new.category_id),
+              user_id: String(payload.new.user_id),
+              title: String(payload.new.title),
+              body_md: String(payload.new.body_md ?? ""),
+              created_at: String(payload.new.created_at ?? new Date().toISOString()),
+              updated_at: String(payload.new.updated_at ?? payload.new.created_at ?? new Date().toISOString()),
+              likes: Number(payload.new.likes ?? 0),
+              profiles: Array.isArray((payload.new as any).profiles)
+                ? (payload.new as any).profiles[0]
+                : (payload.new as any).profiles,
+            };
+            return [newThread, ...prev];
           });
         }
       )

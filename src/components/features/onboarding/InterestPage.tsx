@@ -7,11 +7,11 @@ import { Sparkles, ArrowRight } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
-interface Interest {
+type Interest = {
   id: number;
   name: string;
-  created_at: string;
-}
+  created_at: string | null;
+};
 
 interface InterestPageProps {
   user: {

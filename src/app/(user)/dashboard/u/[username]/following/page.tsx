@@ -25,18 +25,20 @@ export default async function FollowingPage({ params: { username } }: { params: 
 
   if (profileErr) console.error(profileErr);
   if (!profile) return notFound();
+  if (!profile.id) return notFound();
+  const profileId = profile.id;
 
   // Counts for header
   const { data: counts, error: countsErr } = await sb
     .from('profile_follow_counts')
     .select('follower_count, following_count')
-    .eq('profile_id', profile.id)
+    .eq('profile_id', profileId)
     .maybeSingle();
   if (countsErr) console.error(countsErr);
 
   // Following (who this user follows)
   const { data: rows, error: rowsErr } = await sb.rpc('get_following', {
-    p_user_id: profile.id,
+    p_user_id: profileId,
     p_limit: 200,
     p_offset: 0,
   });

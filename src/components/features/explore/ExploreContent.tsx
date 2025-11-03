@@ -127,6 +127,7 @@ export default function ExploreContent({ inDashboard = false }: { inDashboard?: 
       if (!countsErr && countRows?.length) {
         const pageCounts: Record<string, FollowCounts> = {};
         for (const c of countRows) {
+          if (!c.profile_id) continue;
           pageCounts[c.profile_id] = {
             follower_count: Number(c.follower_count ?? 0),
             following_count: Number(c.following_count ?? 0),
@@ -148,7 +149,8 @@ export default function ExploreContent({ inDashboard = false }: { inDashboard?: 
       if (!badgeErr && badgeRows) {
         const pageBadges: Record<string, BadgeRow[]> = {};
         for (const row of badgeRows as any[]) {
-          const key = row.user_id as string;
+          const key = typeof row.user_id === 'string' ? row.user_id : null;
+          if (!key) continue;
           const badge = Array.isArray(row.badges) ? row.badges[0] : row.badges;
           if (!badge) continue;
           const entry: BadgeRow = { badges: badge as BadgeRow['badges'], assigned_at: row.assigned_at ?? row.created_at ?? null };

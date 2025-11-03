@@ -101,7 +101,10 @@ export async function GET(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
     if (data) {
-      profile = data;
+      profile = {
+        onboarding_complete: Boolean(data.onboarding_complete),
+        early_access: Boolean(data.early_access),
+      };
       break;
     }
     await new Promise((r) => setTimeout(r, 150));

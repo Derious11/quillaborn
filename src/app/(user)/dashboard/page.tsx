@@ -15,6 +15,19 @@ type ProfilePostRow = {
   reaction_count: number;
 };
 
+type AuthorProfile = {
+  id: string;
+  display_name: string | null;
+  username: string | null;
+  avatar_key: string | null;
+  avatar_url: string | null;
+  avatar_kind: string | null;
+};
+
+function normalizeAvatarKind(kind: string | null): Profile["avatar_kind"] {
+  return kind === "none" || kind === "preset" || kind === "upload" ? kind : null;
+}
+
 function calculateCreativeStreak(posts: { created_at: string }[]): number {
   if (!posts.length) return 0;
   const uniqueDates = Array.from(new Set(posts.map((p) => p.created_at.split("T")[0])));
@@ -135,16 +148,32 @@ export default async function DashboardPage() {
           "id, display_name, username, avatar_key, avatar_url, avatar_kind"
         )
         .in("id", authorIds)
-    : { data: [] };
+    : { data: [] as AuthorProfile[] };
+
+  const authorById = new Map(
+    ((authorProfiles ?? []) as AuthorProfile[]).map((profileRow) => [
+      profileRow.id,
+      profileRow,
+    ]),
+  );
 
   // --- Combine posts + authors ----------------------------------
-  const creativePulses: CreativePulse[] = feedPosts.map((post) => ({
-    ...post,
-    author:
-      (authorProfiles || []).find(
-        (p) => p.id === post.author_user_id
-      ) ?? null,
-  }));
+  const creativePulses: CreativePulse[] = feedPosts.map((post) => {
+    const author = authorById.get(post.author_user_id);
+    return {
+      ...post,
+      author: author
+        ? {
+            id: author.id,
+            display_name: author.display_name,
+            username: author.username ?? "",
+            avatar_key: author.avatar_key,
+            avatar_url: author.avatar_url,
+            avatar_kind: normalizeAvatarKind(author.avatar_kind),
+          }
+        : null,
+    };
+  });
 
   // --- Render HomePage ------------------------------------------
   return (

@@ -131,6 +131,9 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
                 ? `/avatars/presets/${p.avatar_key}`
                 : "/avatars/presets/qb-avatar-00-quill.svg";
               const name = p?.display_name || p?.username || "User";
+              const createdAt = u.created_at
+                ? new Date(u.created_at).toLocaleDateString()
+                : null;
 
               return (
                 <li key={u.id} className="text-gray-300 text-sm">
@@ -141,9 +144,11 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
                       className="w-6 h-6 rounded-full border border-green-400"
                     />
                     <span className="font-semibold">{name}</span>
-                    <span className="text-gray-400 text-xs">
-                      {new Date(u.created_at).toLocaleDateString()}
-                    </span>
+                    {createdAt && (
+                      <span className="text-gray-400 text-xs">
+                        {createdAt}
+                      </span>
+                    )}
                   </div>
                   <p className="text-white font-medium">{u.title}</p>
                   <p className="text-gray-400 text-sm line-clamp-2">
@@ -169,6 +174,10 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
               const uploader = Array.isArray(f.uploader)
                 ? f.uploader[0]
                 : f.uploader;
+              const updatedAt =
+                f.updated_at && typeof f.updated_at === "string"
+                  ? new Date(f.updated_at).toLocaleDateString()
+                  : "Unknown date";
 
               return (
                 <li
@@ -181,7 +190,7 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
                         <img
                           src={`${process.env
                             .NEXT_PUBLIC_SUPABASE_URL!}/storage/v1/object/public/project-files/${f.path}`}
-                          alt={f.file_name}
+                          alt={f.file_name ?? "Project file"}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -196,8 +205,9 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
                       <p className="text-xs text-gray-400">
                         {uploader?.display_name ||
                           uploader?.username ||
-                          "Unknown"}{" "}
-                        • {new Date(f.updated_at).toLocaleDateString()}
+                          "Unknown"}
+                        {" - "}
+                        {updatedAt}
                       </p>
                     </div>
                   </div>
@@ -206,7 +216,7 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
                     {f.file_category && (
                       <span
                         className={`text-xs font-medium px-2 py-0.5 rounded-full ${categoryColor(
-                          f.file_category
+                          f.file_category ?? undefined
                         )}`}
                       >
                         {f.file_category}
@@ -259,3 +269,12 @@ export default async function ProjectDashboard({ params }: ProjectPageProps) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+

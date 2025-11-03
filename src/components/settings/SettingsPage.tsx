@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useSupabase } from '@/components/providers/SupabaseProvider';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import type { Json, TablesInsert } from '@/types/database';
 
 
 type Profile = {
@@ -848,11 +849,14 @@ function NotificationsSection({ settings, loading, saving, onUpdateSetting }: No
         applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, // must be set in your .env
       });
 
-      const { error } = await supabase.from('push_subscriptions').insert({
+      const subscriptionJson = JSON.parse(JSON.stringify(subscription.toJSON())) as Json;
+      const insertPayload: TablesInsert<'push_subscriptions'> = {
         user_id: user.id,
-        subscription,
+        subscription: subscriptionJson,
         user_agent: currentUA,
-      });
+      };
+
+      const { error } = await supabase.from('push_subscriptions').insert(insertPayload);
 
       if (error) {
         console.error(error);
@@ -868,7 +872,7 @@ function NotificationsSection({ settings, loading, saving, onUpdateSetting }: No
             id: crypto.randomUUID(),
             user_agent: currentUA,
             created_at: new Date().toISOString(),
-            subscription,
+            subscription: subscriptionJson,
           },
           ...prev,
         ]);

@@ -7,14 +7,14 @@ import { AvatarSelector } from '@/components/features/avatar/AvatarSelector';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import type { Profile } from '@/lib/types';
+import type { Tables } from '@/types/database';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
 export default function AvatarSelectionPage() {
   const router = useRouter();
   const { supabase } = useSupabase();
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Tables<"profiles"> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);

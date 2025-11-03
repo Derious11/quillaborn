@@ -19,6 +19,11 @@ export default async function ProjectLayout({
     .single();
 
   if (!project) notFound();
+  const projectHeader = {
+    ...project,
+    summary: project.summary ?? undefined,
+    header_image_path: project.header_image_path ?? undefined,
+  };
 
   const { data: membersRaw } = await supabase
     .from("project_members")
@@ -39,14 +44,14 @@ export default async function ProjectLayout({
         id: m.user_id,
         name: profile?.display_name || profile?.username || "Unknown",
         role: m.role,
-        avatar_key: profile?.avatar_key,
+        avatar_key: profile?.avatar_key ?? undefined,
       };
     }) ?? [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-500/10 via-gray-900 to-gray-900 text-white">
       <div className="max-w-5xl mx-auto px-3 sm:px-6 space-y-8">
-        <ProjectHeader project={project} members={members} />
+        <ProjectHeader project={projectHeader} members={members} />
         <NavTabs slug={params.slug} />
         <div>{children}</div>
       </div>

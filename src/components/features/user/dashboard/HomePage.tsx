@@ -13,8 +13,9 @@ import PostModal from "@/components/features/social/PostModal";
 import { AnimatePresence, motion } from "framer-motion";
 import PostComposerModal from "@/components/features/social/PostComposerModal";
 
+type InterestItem = { id: number; name: string };
 type Interest = {
-  interests?: { id: number; name: string }[] | null;
+  interests?: InterestItem | InterestItem[] | null;
 };
 
 export type CreativePulse = {
@@ -35,9 +36,9 @@ interface HomePageProps {
   user: User;
   profile: Profile;
   userInterests?: Interest[];
-    userRole?: {
-    role_id: string;
-    roles: { id: string; name: string }[];
+  userRole?: {
+    role_id: number;
+    roles: { id: number; name: string } | { id: number; name: string }[] | null;
   } | null;
   stats: {
     creativeStreakDays: number;
@@ -79,13 +80,14 @@ export default function HomePage({
 
   const formattedInterests = Array.from(
     new Set(
-      (userInterests || [])
-        .flatMap<string>((interest) => {
-          const interestsArray =
-            Array.isArray(interest.interests) ? interest.interests : [];
-          return interestsArray.map((i: { id: number; name: string }) => i.name);
-        })
-        .filter((name): name is string => Boolean(name))
+      (userInterests || []).flatMap((interest) => {
+        const related = interest.interests;
+        if (!related) return [];
+        const items = Array.isArray(related) ? related : [related];
+        return items
+          .map((item) => item.name)
+          .filter((name): name is string => Boolean(name));
+      })
     )
   );
 

@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 
 type Comment = {
   id: string;
-  comment_text: string;
+  comment_text: string | null;
   user_id: string;
-  created_at: string;
+  created_at: string | null;
   profile?: {
     display_name: string | null;
     username: string | null;
@@ -71,7 +71,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
       const combined = commentsData.map((c) => ({
         ...c,
         profile: profileMap[c.user_id] || null,
-      }));
+      })) as Comment[];
 
       setComments(combined);
     } finally {
@@ -122,7 +122,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
                 "Anonymous"}
             </span>
             <p className="text-gray-300 whitespace-pre-wrap">
-              {c.comment_text}
+              {c.comment_text ?? ""}
             </p>
           </div>
         ))

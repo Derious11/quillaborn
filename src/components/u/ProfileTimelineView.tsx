@@ -19,14 +19,24 @@ export default async function ProfileTimelineView({ username }: { username: stri
     .single();
 
   if (error || !profile || !profile.id) notFound();
+  const profileId = profile.id;
+  const normalizedProfile = {
+    ...profile,
+    id: profileId,
+    avatar_key: profile.avatar_key ?? null,
+    avatar_kind: profile.avatar_kind ?? null,
+    avatar_url: profile.avatar_url ?? null,
+    interests: Array.isArray(profile.interests) ? profile.interests : null,
+    roles: Array.isArray(profile.roles) ? profile.roles : null,
+  };
 
-  const isOwner = !!user && user.id === profile.id;
+  const isOwner = !!user && user.id === profileId;
 
   // Count posts for owner callout
   const { count: postsCount } = await supabase
     .from("profile_posts")
     .select("id", { count: "exact", head: true })
-    .eq("profile_user_id", profile.id)
+    .eq("profile_user_id", profileId)
     .neq("status", "deleted");
 
   const hasPosts = (postsCount ?? 0) > 0;
@@ -35,7 +45,7 @@ export default async function ProfileTimelineView({ username }: { username: stri
   const { data: badgeRows } = await supabase
     .from('user_badges')
     .select('assigned_at, badges ( id, name, description, icon_url )')
-    .eq('user_id', profile.id);
+    .eq('user_id', profileId);
 
   const badges = (badgeRows || [])
     .map((row: any) => ({
@@ -47,7 +57,7 @@ export default async function ProfileTimelineView({ username }: { username: stri
   return (
     <div className="space-y-8">
       {/* Profile header/card */}
-      <PublicProfile profile={profile} badges={badges} />
+      <PublicProfile profile={normalizedProfile} badges={badges} />
 
       {/* Timeline */}
       <section className="space-y-4">
@@ -63,7 +73,7 @@ export default async function ProfileTimelineView({ username }: { username: stri
         {/* Only show composer to the owner */}
         {isOwner && <TimelineComposer />}
 
-        <TimelineList profileId={profile.id} isOwner={isOwner} />
+        <TimelineList profileId={profileId} isOwner={isOwner} />
       </section>
     </div>
   );

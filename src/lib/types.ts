@@ -9,7 +9,7 @@ export type Profile = {
   username: string;
   display_name: string | null;
   avatar_url: string | null;
-  avatar_kind: 'none' | 'preset' | 'upload' | null;
+  avatar_kind: "none" | "preset" | "upload" | null;
   avatar_key: string | null;
   bio: string | null;
   pronouns: { display_text: string } | null;

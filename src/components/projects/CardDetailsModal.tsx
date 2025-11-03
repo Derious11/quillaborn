@@ -109,6 +109,7 @@ export default function CardDetailsModal({
   // --- fetch card + assignees + comments ---
   useEffect(() => {
     if (!cardId) return;
+    const currentCardId = cardId;
     let cancelled = false;
 
     async function fetchData() {
@@ -119,7 +120,7 @@ export default function CardDetailsModal({
         const { data: cardData } = await supabase
           .from("cards")
           .select("id, title, description, due_at, board_list_id")
-          .eq("id", cardId)
+          .eq("id", currentCardId)
           .single();
         if (!cancelled) setCard(cardData ?? null);
 
@@ -127,7 +128,7 @@ export default function CardDetailsModal({
         const { data: rawAssignees } = await supabase
           .from("card_assignees")
           .select("user_id, profiles(*)")
-          .eq("card_id", cardId);
+          .eq("card_id", currentCardId);
 
         if (!cancelled) {
           setAssignees(
@@ -142,7 +143,7 @@ export default function CardDetailsModal({
         const { data: rawComments } = await supabase
           .from("card_comments")
           .select("id, body, created_at, profiles(*)")
-          .eq("card_id", cardId)
+          .eq("card_id", currentCardId)
           .order("created_at", { ascending: true });
 
         if (!cancelled) {
@@ -169,6 +170,7 @@ export default function CardDetailsModal({
   // ✅ NEW: Fetch project members for the assignee dropdown
   useEffect(() => {
     if (!projectId) return;
+    const currentProjectId = projectId;
     let cancelled = false;
 
     async function fetchProjectMembers() {
@@ -178,7 +180,7 @@ export default function CardDetailsModal({
           user_id,
           profiles:profiles(*)
         `)
-        .eq("project_id", projectId);
+        .eq("project_id", currentProjectId);
 
       if (error) {
         console.error("Failed to fetch members:", error);
@@ -236,10 +238,17 @@ export default function CardDetailsModal({
 
   async function handleAddComment() {
     if (!card || !newComment.trim()) return;
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.id) {
+      toast({ variant: "destructive", title: "Not signed in", description: "Please sign in to comment." });
+      return;
+    }
+
     const { data } = await supabase
       .from("card_comments")
-      .insert([{ card_id: card.id, author_id: user?.id, body: newComment }])
+      .insert([{ card_id: card.id, author_id: user.id, body: newComment.trim() }])
       .select("id, body, created_at, profiles(*)")
       .single();
 
@@ -250,7 +259,7 @@ export default function CardDetailsModal({
           id: String(data.id),
           body: String(data.body ?? ""),
           created_at: String(data.created_at ?? new Date().toISOString()),
-          author: coerceProfile((data as any).profiles, user?.id ?? "unknown", "You"),
+          author: coerceProfile((data as any).profiles, user.id, user.email ?? "You"),
         },
       ]);
       setNewComment("");
@@ -435,3 +444,4 @@ export default function CardDetailsModal({
     </Dialog>
   );
 }
+

@@ -8,6 +8,7 @@ import { Loader2, Upload, Trash2, FileText, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { FileDropZone } from "@/components/projects/FileDropZone";
 import { Modal } from "@/components/ui/modal";
+import type { TablesInsert } from "@/types/database";
 
 // ---------------------------
 // Type definitions
@@ -189,6 +190,10 @@ export default function FileManager() {
         .upload(filePath, file);
       if (uploadError) throw uploadError;
 
+      if (!user?.id) {
+        throw new Error("You must be signed in to upload files.");
+      }
+
       const fileType = file.type.startsWith("image/")
         ? "image"
         : file.type.startsWith("video/")
@@ -197,9 +202,9 @@ export default function FileManager() {
         ? "audio"
         : "document";
 
-      const { error: dbError } = await supabase.from("project_files").insert({
+      const insertPayload: TablesInsert<"project_files"> = {
         project_id: project.id,
-        uploader_id: user?.id,
+        uploader_id: user.id,
         path: filePath,
         size_bytes: file.size,
         mime: file.type,
@@ -207,10 +212,13 @@ export default function FileManager() {
         file_type: fileType,
         visibility: "team",
         version: 1,
-      });
+      };
+
+      const { error: dbError } = await supabase.from("project_files").insert(insertPayload);
       if (dbError) throw dbError;
 
-      toast({ title: "Upload complete", description: file.name,duration: 2500, });
+      toast({ title: "Upload complete", description: file.name,
+        duration: 2500, });
       loadFiles();
     } catch (err: any) {
       toast({
@@ -602,3 +610,4 @@ export default function FileManager() {
     </div>
   );
 }
+

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSupabase } from "@/components/providers/SupabaseProvider";
 import { useToast } from "@/hooks/use-toast";
+import type { Json, TablesInsert } from "@/types/database";
 
 export function usePushNotifications(enabled: boolean) {
   const { supabase, session } = useSupabase();
@@ -61,11 +62,14 @@ export function usePushNotifications(enabled: boolean) {
           .match({ user_id: session.user.id, user_agent: currentUA });
 
         // ✅ Save subscription
-        const { error } = await supabase.from("push_subscriptions").insert({
+        const normalizedSubscription = JSON.parse(JSON.stringify(raw)) as Json;
+        const insertPayload: TablesInsert<"push_subscriptions"> = {
           user_id: session.user.id,
-          subscription: raw,
+          subscription: normalizedSubscription,
           user_agent: currentUA,
-        });
+        };
+
+        const { error } = await supabase.from("push_subscriptions").insert(insertPayload);
 
         if (error) throw error;
 
@@ -111,12 +115,14 @@ export function usePushNotifications(enabled: boolean) {
       });
 
       const raw = sub.toJSON();
-
-      await supabase.from("push_subscriptions").upsert({
+      const normalizedSubscription = JSON.parse(JSON.stringify(raw)) as Json;
+      const upsertPayload: TablesInsert<"push_subscriptions"> = {
         user_id: session.user.id,
-        subscription: raw,
+        subscription: normalizedSubscription,
         user_agent: currentUA,
-      });
+      };
+
+      await supabase.from("push_subscriptions").upsert(upsertPayload);
 
       setSubscribed(true);
       toast({
