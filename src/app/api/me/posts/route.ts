@@ -1,25 +1,42 @@
 // app/api/me/posts/route.ts
-import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-function sb() {
-  return createServerClient(
+import { supabaseClientOptions } from "@/lib/supabaseClientOptions";
+import type { Database } from "@/types/database";
+
+function createRouteClient() {
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => cookies().getAll().map(c => ({ name: c.name, value: c.value })) } }
+    {
+      ...supabaseClientOptions,
+      cookies: {
+        getAll: () => cookies().getAll().map((c) => ({
+          name: c.name,
+          value: c.value,
+        })),
+      },
+    },
   );
 }
 
 export async function POST(req: Request) {
-  const supabase = sb();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const supabase = createRouteClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { body } = await req.json().catch(() => ({}));
   const text = (body ?? "").toString().trim();
   if (!text || text.length > 2000) {
-    return NextResponse.json({ error: "Body must be 1–2000 chars" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Body must be 1–2000 chars" },
+      { status: 400 },
+    );
   }
 
   const { data, error } = await supabase

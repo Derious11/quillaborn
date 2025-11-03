@@ -3,14 +3,23 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-// NOTE: These must be set in your .env.local
-// NEXT_PUBLIC_SUPABASE_URL
-// NEXT_PUBLIC_SUPABASE_ANON_KEY
+import { supabaseClientOptions } from "./supabaseClientOptions";
+import type { Database } from "@/types/database";
 
-export function createSupabaseBrowserClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+export type BrowserSupabaseClient = SupabaseClient<Database>;
+
+let client: BrowserSupabaseClient | null = null;
+
+export function createSupabaseBrowserClient(): BrowserSupabaseClient {
+  if (!client) {
+    client = createBrowserClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseClientOptions,
+    );
+  }
+
+  return client;
 }
