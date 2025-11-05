@@ -45,7 +45,7 @@ export default function Sidebar({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
-  const { unreadMessages } = useNotifications();
+  const { unreadMessages, unreadNotifications } = useNotifications();
 
   const sidebarOpen =
     externalSidebarOpen !== undefined
@@ -154,6 +154,28 @@ export default function Sidebar({
                         <Icon size={20} />
                         {item.label}
                       </span>
+
+                      {/* Unread badge for Notifications */}
+                      {item.id === "notifications" && unreadNotifications > 0 && (
+                        <span
+                          className={`
+                            inline-flex items-center justify-center min-w-[1.5rem] px-1.5 h-6 text-xs font-semibold rounded-full
+                            ${
+                              isActive
+                                ? "bg-gray-900 text-amber-300"
+                                : "bg-amber-500/20 text-amber-200"
+                            }
+                            border ${
+                              isActive
+                                ? "border-gray-700"
+                                : "border-amber-500/40"
+                            }
+                          `}
+                          aria-label={`${unreadNotifications} unread notifications`}
+                        >
+                          {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                        </span>
+                      )}
 
                       {/* Unread badge for Messages */}
                       {item.id === "messages" && unreadMessages > 0 && (
